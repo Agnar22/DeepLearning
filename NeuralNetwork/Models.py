@@ -13,3 +13,9 @@ class Sequential:
 
     def compile(self, loss=None):
         pass
+
+    def fit(self, x_train, y_train, x_val=None, y_val=None):
+        pass
+
+    def predict(self, x, y=None):
+        pass
