@@ -9,11 +9,9 @@ class Activation:
 
     def forward(self, input):
         self.activations = self.function(input)
-        # print("act", self.activations.shape, input.shape)
         return self.activations
 
     def backward(self, temp_gradient):
-        # print(self.derivative(self.activations).shape, temp_gradient.shape)
         return self.derivative(self.activations) * temp_gradient
 
 

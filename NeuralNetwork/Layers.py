@@ -31,7 +31,6 @@ class Dense:
         self.prev_layer = inputs
         self.input_size = self.prev_layer.units
         self.weights = np.random.uniform(low=-0.1, high=0.1, size=(self.input_size, self.units))
-        # self.weights = np.ones((self.input_size, self.units))
         return self
 
     def forward(self, input):
@@ -45,36 +44,37 @@ class Dense:
         return self.activation.forward(self.weighted_sum.transpose())
 
     def backward(self, temp_gradient):
-        print("grad", temp_gradient.shape, self.weights.shape, self.prev_layer_out.shape)
         temp_gradient = self.activation.backward(temp_gradient) if self.activation is not None else temp_gradient
 
+        # Calculate gradients for weights and bias
         delta_weights = self.prev_layer_out.transpose() @ temp_gradient
-        delta_bias = temp_gradient
+        delta_bias = temp_gradient.transpose().sum(axis=-1, keepdims=True)
         # Update weights
         next_grad = np.transpose(self.weights @ np.transpose(temp_gradient))
-        self.weights -= 0.01 * delta_weights
+        self.weights -= 0.1 * delta_weights
+        self.bias -= 0.01 * delta_bias
+
         self.prev_layer.backward(next_grad)
 
 
 if __name__ == '__main__':
     inp = Input(1)
-    # a = Dense(1)(inp)
-    # b = Dense(10)(inp)
-    b = Dense(40, activation=Activations.ReLu())(inp)
+    # b = Dense(40, activation=Activations.ReLu())(inp)
     # b = Dense(50, activation=Activations.ReLu())(b)
     # b = Dense(60, activation=Activations.ReLu())(b)
     # b = Dense(100, activation=Activations.ReLu())(inp)
     # b = Dense(10, activation=Activations.ReLu())(b)
     # b = Dense(100, activation=Activations.ReLu())(b)
-    b = Dense(2, activation=Activations.Softmax())(b)
+    b = Dense(1, activation=Activations.Linear(), use_bias=True)(inp)
     for x in range(1000):
         outp = b.forward(np.array([[1], [-1]]))
         print(outp, outp.shape)
-        # loss = Losses.L2()
-        loss = Losses.Cross_Entropy()
+        loss = Losses.L2()
+        # loss = Losses.Cross_Entropy()
         # print("loss", loss.forward(outp, np.array([[2], [10]])))
         # print("loss", loss.backward(outp, np.array([[0.1, 0.1, 0.1, 0.4], [0.4, 0.2, 1, 2]])))
-        # b.backward(loss.backward(outp, np.array([[2], [10]])))
-        # print("loss", loss.forward(outp, np.array([[2], [10]])))
-        b.backward(loss.backward(outp, np.array([[0.0001, 0.9999], [0.9999, 0.0001]])))
-        print("loss", loss.forward(outp, np.array([[0.0001, 0.9999], [0.9999, 0.0001]])))
+        # b.backward(loss.backward(outp, np.array([[0.1, 0.1, 0.1, 0.4], [0.4, 0.2, 1, 2]])))
+        b.backward(loss.backward(outp, np.array([[1], [0]])))
+        print("loss", loss.forward(outp, np.array([[1], [0]])))
+        # b.backward(loss.backward(outp, np.array([[0.0001, 0.9999], [0.9999, 0.0001]])))
+        # print("loss", loss.forward(outp, np.array([[0.0001, 0.9999], [0.9999, 0.0001]])))
