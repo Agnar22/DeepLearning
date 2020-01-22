@@ -5,6 +5,7 @@ import enum
 import sys
 
 import NeuralNetwork as NN
+from NeuralNetwork import Layers, Activations, Losses, Models
 
 
 def cast_config_dict(config_dict):
@@ -27,6 +28,7 @@ def read_config(path="config.txt"):
 
 
 def create_model():
+    # Special case if 0
     pass
 
 
@@ -48,3 +50,14 @@ if __name__ == '__main__':
     #     cv2.imshow(str(int(data[x, -1])), data[x, :784].reshape(28, 28))
     #     cv2.waitKey()
     #     cv2.destroyAllWindows()
+    inp = Layers.Input(784)
+    b = Layers.Dense(512, activation=Activations.ReLu(), use_bias=True)(inp)
+    b = Layers.Dense(512, activation=Activations.ReLu(), use_bias=True)(b)
+    b = Layers.Dense(512, activation=Activations.ReLu(), use_bias=True)(b)
+    b = Layers.Dense(10, activation=Activations.Softmax(), use_bias=True)(b)
+    model = NN.Models.Sequential()
+    model.add(b)
+
+    model.compile(loss=NN.Losses.L2(), lr=0.0000001)
+    model.fit(data[:, :784],
+              np.array([[1 if x == data[y, -1] else 0 for x in range(10)] for y in range(data.shape[0])]), epochs=200)

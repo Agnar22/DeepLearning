@@ -6,13 +6,25 @@ class Activation:
         self.function = function
         self.derivative = derivative
         self.activations = None
+        self.prev_layer = None
+
+    def __call__(self, input):
+        self.prev_layer = input
+        self.output_shape = self.prev_layer.output_shape
+        return self
 
     def forward(self, input):
+        if self.prev_layer is not None:
+            input = self.prev_layer.forward(input)
         self.activations = self.function(input)
         return self.activations
 
     def backward(self, temp_gradient):
-        return self.derivative(self.activations) * temp_gradient
+        gradient = self.derivative(self.activations) * temp_gradient
+        if self.prev_layer is not None:
+            self.prev_layer.backward(gradient)
+        else:
+            return gradient
 
 
 class ReLu(Activation):
