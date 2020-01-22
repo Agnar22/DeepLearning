@@ -68,23 +68,30 @@ class Dense:
         delta_weights = self.prev_layer_out.transpose() @ temp_gradient
         delta_bias = temp_gradient.transpose().sum(axis=-1, keepdims=True)
 
+        lr = 0.005
+        reg = 0.1
+
+        if self.kernel_regularizer is not None:
+            self.weights -= lr * reg * self.kernel_regularizer.regularizer(self.weights)
+            self.bias -= lr * reg * self.kernel_regularizer.regularizer(self.bias)
+
         # Update weights
-        self.weights -= 0.001 * delta_weights
+        self.weights -= lr * delta_weights
         # print("gradients", delta_weights.flatten().mean())
-        self.bias -= 0.001 * delta_bias
+        self.bias -= lr * delta_bias
 
         self.prev_layer.backward(next_grad)
 
 
 if __name__ == '__main__':
     inp = Input(1)
-    b = Dense(40, activation=Activations.ReLu(), use_bias=True)(inp)
-    # b = Dense(50, activation=Activations.ReLu())(b)
-    # b = Dense(60, activation=Activations.ReLu())(b)
+    b = Dense(100, activation=Activations.ReLu(), use_bias=True)(inp)
+    b = Dense(100, activation=Activations.ReLu(), use_bias=True)(b)
+    b = Dense(100, activation=Activations.ReLu(), use_bias=True)(b)
     # b = Dense(100, activation=Activations.ReLu())(inp)
     # b = Dense(10, activation=Activations.ReLu())(b)
     # b = Dense(2, activation=Activations.Linear())(b)
-    b = Dense(4, activation=Activations.Softmax(), use_bias=True)(b)
+    # b = Dense(4, activation=Activations.Softmax(), use_bias=True)(b)
     # b = Activations.ReLu()(b)
     # b = Activations.Linear()(b)
     # b = Activations.Linear()(b)
@@ -92,15 +99,15 @@ if __name__ == '__main__':
     # b = Activations.Tanh()(b)
     # b = Activations.Tanh()(b)
     # b = Activations.Tanh()(b)
-    # b = Dense(2, activation=Activations.Linear())(b)
+    b = Dense(4, activation=Activations.Softmax())(b)
     for x in range(1000):
-        outp = b.forward(np.array([[1], [-1]]))
+        outp = b.forward(np.array([[1], [0.1]]))
         print(outp, outp.shape)
         # loss = Losses.L2()
         loss = Losses.Cross_Entropy()
-        print("loss", loss.forward(outp, np.array([[0.4, 0.1, 0.1, 0.4], [0.4, 0.2, 0.2, 0.2]])))
-        print("loss", loss.backward(outp, np.array([[0.4, 0.1, 0.1, 0.4], [0.4, 0.2, 0.2, 0.2]])))
-        b.backward(loss.backward(outp, np.array([[0.4, 0.1, 0.1, 0.4], [0.4, 0.2, 0.2, 0.2]])))
+        print("loss", loss.forward(outp, np.array([[0.3, 0.2, 0.3, 0.2], [0.4, 0.1, 0.1, 0.4]])))
+        print("loss", loss.backward(outp, np.array([[0.3, 0.2, 0.3, 0.2], [0.4, 0.1, 0.1, 0.4]])))
+        b.backward(loss.backward(outp, np.array([[0.3, 0.2, 0.3, 0.2], [0.4, 0.1, 0.1, 0.4]])))
         # b.backward(loss.backward(outp, np.array([[1], [0]])))
         # print("loss", loss.forward(outp, np.array([[1], [0]])))
         # b.backward(loss.backward(outp, np.array([[0.1, 0.9], [0.9, 0.1]])))

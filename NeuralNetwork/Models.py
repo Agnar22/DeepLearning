@@ -51,7 +51,8 @@ class Sequential:
                 correct_val = (np.argmax(fwd_propagation, axis=-1) == np.argmax(y_val, axis=-1)).sum()
                 curr_loss = self.loss_func.forward(fwd_propagation, y_val)
 
-                Sequential.print_progress(40, x_train.shape[0], x_train.shape[0], loss, correct, loss_val=curr_loss, correct_val=correct_val, val_samp=y_val.shape[0])
+                Sequential.print_progress(40, x_train.shape[0], x_train.shape[0], loss, correct, val_loss=curr_loss,
+                                          correct_val=correct_val, num_val=y_val.shape[0])
             val_loss.append(curr_loss)
             print()
         return train_loss, val_loss
@@ -60,21 +61,30 @@ class Sequential:
         pass
 
     @staticmethod
-    def print_progress(bars, batch_end, epoch_length, sum_loss, correct,
-                       loss_val=None, correct_val=None, val_samp=None):
+    def print_progress(bars, batch_end, epoch_length, sum_loss, correct, val_loss=None, correct_val=None, num_val=None):
+        """
+
+        :param bars:
+        :param batch_end:
+        :param epoch_length:
+        :param sum_loss:
+        :param correct:
+        :param val_loss:
+        :param correct_val:
+        :param num_val:
+        :return:
+        """
+
         r = int((batch_end / epoch_length) * bars)
         progressbar = '\r[' + ''.join('=' for _ in range(r)) + '>' + ''.join('-' for _ in range(bars - r)) + '] '
-        progress = str(round(batch_end * 100 / epoch_length, 3)) + ' % (' + \
-                   str(batch_end) + '/' + str(epoch_length) + ')'
-        train_stats = '\tloss: ' + str(round(sum_loss / batch_end, 5)) + \
-                      '\tcor: ' + str(correct) + '/' + str(batch_end) + \
-                      ' (' + str(round(correct * 100 / batch_end, 4)) + ' %)'
-
+        progress = '{0:.3f} % ({1:d}/{2:d})'.format(batch_end * 100 / epoch_length, batch_end, epoch_length)
+        train_stats = '\t\tloss: {0:.7f}  corr: {1:d}/{2:d} ({3:.2f} %)'.format(sum_loss / batch_end, correct,
+                                                                                batch_end, 100 * correct / batch_end)
         val_stats = ''
-        if loss_val is not None:
-            val_stats = '\tval_loss: ' + str(round(loss_val, 5)) + \
-                        '\tval_cor: ' + str(correct_val) + '/' + str(val_samp) + \
-                        ' (' + str(round(correct_val * 100 / val_samp, 4)) + ' %)'
+        if val_loss is not None:
+            val_stats = '\t\tval_loss: {0:.7f} val_corr: {1:d}/{2:d} ({3:.2f} %)'.format(val_loss, correct_val, num_val,
+                                                                                         100 * correct_val / num_val)
+
         print(progressbar + progress + train_stats + val_stats, end='')
 
 

@@ -1,17 +1,27 @@
 import numpy as np
 
 
-# TODO: Cross entropy backward correct?
-
 class Loss:
     def __init__(self, function, derivative):
         self.function = function
         self.derivative = derivative
 
     def forward(self, prediction, target):
+        """
+
+        :param prediction:
+        :param target:
+        :return:
+        """
         return self.function(prediction, target).flatten().sum() / target.shape[0]
 
     def backward(self, prediction, target):
+        """
+
+        :param prediction:
+        :param target:
+        :return:
+        """
         return self.derivative(prediction, target)
 
 
@@ -22,7 +32,7 @@ class L2(Loss):
 
 class Cross_Entropy(Loss):
     def __init__(self):
-        Loss.__init__(self, lambda x, y: -y * np.log2(x+0.00001), lambda x, y: -y / (x+0.00001))  # * np.log(2)))
+        Loss.__init__(self, lambda x, y: -y * np.log2(x), lambda x, y: -y / (x))  # * np.log(2)))
 
 
 if __name__ == '__main__':
