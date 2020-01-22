@@ -41,8 +41,8 @@ def train_network(model, x_train, y_train, x_val, y_val):
 
 
 if __name__ == '__main__':
-    print(read_config())
     data = np.genfromtxt("Data/train_small.csv", delimiter=',')
+    val_data = np.genfromtxt("Data/validate_small.csv", delimiter=',')
 
     # import cv2
     #
@@ -52,12 +52,16 @@ if __name__ == '__main__':
     #     cv2.destroyAllWindows()
     inp = Layers.Input(784)
     b = Layers.Dense(512, activation=Activations.ReLu(), use_bias=True)(inp)
-    b = Layers.Dense(512, activation=Activations.ReLu(), use_bias=True)(b)
-    b = Layers.Dense(512, activation=Activations.ReLu(), use_bias=True)(b)
+    # b = Layers.Dense(512, activation=Activations.Linear(), use_bias=True)(b)
+    b = Layers.Dense(512, activation=Activations.Tanh(), use_bias=True)(b)
     b = Layers.Dense(10, activation=Activations.Softmax(), use_bias=True)(b)
+    # b = Activations.Softmax()(b)
     model = NN.Models.Sequential()
     model.add(b)
 
-    model.compile(loss=NN.Losses.L2(), lr=0.0000001)
+    model.compile(loss=NN.Losses.Cross_Entropy(), lr=0.0000001)
     model.fit(data[:, :784],
-              np.array([[1 if x == data[y, -1] else 0 for x in range(10)] for y in range(data.shape[0])]), epochs=200)
+              np.array([[1 if x == data[y, -1] else 0 for x in range(10)] for y in range(data.shape[0])]),
+              validation_data=(val_data[:, :784],
+              np.array([[1 if x == val_data[y, -1] else 0 for x in range(10)] for y in range(data.shape[0])]))
+    , epochs=200)

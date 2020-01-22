@@ -9,17 +9,32 @@ class Activation:
         self.prev_layer = None
 
     def __call__(self, input):
+        """
+
+        :param input:
+        :return:
+        """
         self.prev_layer = input
         self.output_shape = self.prev_layer.output_shape
         return self
 
     def forward(self, input):
+        """
+
+        :param input:
+        :return:
+        """
         if self.prev_layer is not None:
             input = self.prev_layer.forward(input)
         self.activations = self.function(input)
         return self.activations
 
     def backward(self, temp_gradient):
+        """
+
+        :param temp_gradient:
+        :return:
+        """
         gradient = self.derivative(self.activations) * temp_gradient
         if self.prev_layer is not None:
             self.prev_layer.backward(gradient)
@@ -51,8 +66,28 @@ class Softmax(Activation):
         Activation.__init__(self,
                             lambda x: np.exp(x - np.max(x, axis=-1, keepdims=True)) /
                                       np.exp(x - np.max(x, axis=-1, keepdims=True)).sum(axis=-1, keepdims=True),
-                            lambda x: -np.power(np.e, x) * (1 - np.power(np.e, x))
-                            )
+                            lambda x: x)
+
+    def backward(self, temp_gradient):
+        """
+
+        :param temp_gradient:
+        :return:
+        """
+        # print((self.activations.transpose() @ self.activations))
+        # print((1 - np.identity(self.activations.shape[-1])))
+        # print(-(self.activations.transpose() @ self.activations) * (1 - np.identity(self.activations.shape[-1])))
+        act_shape = self.activations.shape
+        act = self.activations.reshape(act_shape[0], 1, act_shape[-1])
+        jacobian = - (act.transpose((0, 2, 1)) @ act) * (1 - np.identity(self.activations.shape[-1]))
+        jacobian += np.identity(act_shape[-1]) * (act * (1 - act)).transpose((0, 2, 1))
+
+        gradient = (jacobian @ temp_gradient.reshape(act_shape[0], act_shape[-1], 1))  #
+        gradient = gradient.reshape((act_shape[0], act_shape[-1]))
+        if self.prev_layer is not None:
+            self.prev_layer.backward(gradient)
+        else:
+            return gradient
 
 
 if __name__ == '__main__':
