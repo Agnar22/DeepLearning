@@ -12,8 +12,8 @@ class Input:
 
     @staticmethod
     def _set_default_name():
-        layer_name = "Dense_{0:d}".format(Dense.num_dense_layers)
-        Dense.num_dense_layers += 1
+        layer_name = "Input_{0:d}".format(Input.num_input_layers)
+        Input.num_input_layers += 1
         return layer_name
 
     def forward(self, input):

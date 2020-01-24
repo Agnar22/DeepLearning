@@ -54,16 +54,19 @@ class Activation:
 class ReLu(Activation):
     def __init__(self):
         Activation.__init__(self, lambda x: x * (x > 0), lambda x: x > 0)
+        self.name = 'relu'
 
 
 class Linear(Activation):
     def __init__(self):
         Activation.__init__(self, lambda x: x, lambda x: 1)
+        self.name = 'linear'
 
 
 class Tanh(Activation):
     def __init__(self):
         Activation.__init__(self, lambda x: np.tanh(x), lambda x: 1 - np.power(np.tanh(x), 2))
+        self.name = 'tanh'
 
 
 class Softmax(Activation):
@@ -77,6 +80,7 @@ class Softmax(Activation):
                             lambda x: np.exp(x - np.max(x, axis=-1, keepdims=True)) /
                                       np.exp(x - np.max(x, axis=-1, keepdims=True)).sum(axis=-1, keepdims=True),
                             None)
+        self.name = 'softmax'
 
     def backward(self, temp_gradient):
         """
