@@ -46,7 +46,7 @@ class Activation:
 
         gradient = self.derivative(self.activations) * temp_gradient
         if self.prev_layer is not None:
-            self.prev_layer.backward(gradient)
+            return 0 + self.prev_layer.backward(gradient)
         else:
             return gradient
 

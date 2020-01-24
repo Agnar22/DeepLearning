@@ -3,28 +3,50 @@
 import numpy as np
 
 
-# TODO: create kernel regularizer backward and forward
-
 class Input:
-    def __init__(self, size):
+    num_input_layers = 0
+
+    def __init__(self, size, name=None):
         self.output_shape = size
+        self.name = name if name is not None else Input._set_default_name()
+
+    @staticmethod
+    def _set_default_name():
+        layer_name = "Dense_{0:d}".format(Dense.num_dense_layers)
+        Dense.num_dense_layers += 1
+        return layer_name
 
     def forward(self, input):
         return input
 
     def backward(self, input):
-        pass
+        return 0
 
 
 class Dense:
-    def __init__(self, units, activation=None, use_bias=True, kernel_regularizer=None):
+    num_dense_layers = 0
+
+    def __init__(self, units, activation=None, use_bias=True, kernel_regularizer=None, name=None):
         self.output_shape = units
         self.activation = activation
         self.use_bias = use_bias
         self.bias = np.zeros((units, 1))
         self.kernel_regularizer = kernel_regularizer
+        self.name = name if name is not None else Dense._set_default_name()
         self.input_size = None
         self.prev_layer_out = None
+        self.lr = None
+
+    @staticmethod
+    def _set_default_name():
+        """
+
+        :return:
+        """
+
+        layer_name = "Dense_{0:d}".format(Dense.num_dense_layers)
+        Dense.num_dense_layers += 1
+        return layer_name
 
     def __call__(self, inputs):
         """
@@ -37,6 +59,17 @@ class Dense:
         self.input_size = self.prev_layer.output_shape
         self.weights = np.random.uniform(low=-0.1, high=0.1, size=(self.input_size, self.output_shape))
         return self
+
+    def __str__(self):
+        """
+
+        :return:
+        """
+
+        return 'Weights:\n{0} \n\n Bias:\n{1}'.format(str(self.weights), str(self.bias))
+
+    def set_lr(self, lr):
+        self.lr = lr
 
     def forward(self, input):
         """
@@ -68,19 +101,47 @@ class Dense:
         delta_weights = self.prev_layer_out.transpose() @ temp_gradient
         delta_bias = temp_gradient.transpose().sum(axis=-1, keepdims=True)
 
-        lr = 0.005
-        reg = 0.1
-
+        # lr = 0.005
+        # reg = 0.01
+        # reg = 0.05
+        reg_loss = 0
         if self.kernel_regularizer is not None:
-            self.weights -= lr * reg * self.kernel_regularizer.regularizer(self.weights)
-            self.bias -= lr * reg * self.kernel_regularizer.regularizer(self.bias)
+            reg_loss = self.kernel_regularizer.loss(self.weights) + self.kernel_regularizer.loss(self.bias)
+            self.weights -= self.lr * self.kernel_regularizer.regularizer(self.weights)
+            self.bias -= self.lr * self.kernel_regularizer.regularizer(self.bias)
 
         # Update weights
-        self.weights -= lr * delta_weights
-        # print("gradients", delta_weights.flatten().mean())
-        self.bias -= lr * delta_bias
+        self.weights -= self.lr * delta_weights
+        self.bias -= self.lr * delta_bias
 
-        self.prev_layer.backward(next_grad)
+        return reg_loss + self.prev_layer.backward(next_grad)
+
+    def store_as_txt(self, path):
+        """
+
+        :param path:
+        :return:
+        """
+
+        with open(path + '/' + self.name + '.txt', "w+") as f:
+            f.write(str(self))
+
+    def save_weights(self, path):
+        """
+
+        :param path:
+        :return:
+        """
+
+        print("Saving weights", path, self.name)
+
+        file_path = path + '/' + self.name
+        np.save(file_path, self.weights)
+        return file_path
+
+    def load_weights(self, file_path):
+        print("Loaded", file_path + '.npy')
+        self.weights = np.load(file_path + '.npy')
 
 
 if __name__ == '__main__':

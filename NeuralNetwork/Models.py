@@ -9,36 +9,95 @@ class Sequential:
         self.lr = None
 
     def add(self, layer):
+        """
+
+        :param layer:
+        :return:
+        """
+
         if len(self.layers) > 0:
             layer(self.layers[-1])
         self.layers.append(layer)
 
-    def save_weights(self, file_path):
-        pass
+    def save_model(self, file_path, as_txt=False):
+        """
 
-    def load_weights(self, file_path):
-        pass
+        :param file_path:
+        :return:
+        """
+        if as_txt:
+            files = list(filter(lambda x: x is not None,
+                                map(lambda x: x.store_as_txt(file_path) if hasattr(x, 'weights') else None,
+                                    self.layers)))
+        else:
+            files = list(filter(lambda x: x is not None,
+                                map(lambda x: x.save_weights(file_path) if hasattr(x, 'weights') else None,
+                                    self.layers)))
+        return files
+
+    def load_model(self, file_paths):
+        """
+
+        :param file_paths:
+        :return:
+        """
+
+        for file_path in file_paths:
+            layer_name = file_path.split('/')[-1]
+            list(filter(lambda x: x.name == layer_name, self.layers))[0].load_weights(file_path)
 
     def compile(self, loss=None, lr=None):
+        """
+
+        :param loss:
+        :param lr:
+        :return:
+        """
+
         self.loss_func = loss
         self.lr = lr
 
-    def fit(self, x_train, y_train, validation_data=None, epochs=10, batch_size=32):
+        added_layers = []
+        for layer in self.layers:
+            if not hasattr(layer, 'prev_layer'):
+                continue
+            curr_ancestor = layer
+            while hasattr(curr_ancestor, 'prev_layer'):
+                curr_ancestor.set_lr(self.lr)
+                curr_ancestor = curr_ancestor.prev_layer
+                if curr_ancestor not in self.layers: added_layers.append(curr_ancestor)
+        added_layers.extend(self.layers)
+        self.layers = added_layers
+
+    def fit(self, x_train, y_train, validation_data=None, epochs=10, batch_size=64):
+        """
+
+        :param x_train:
+        :param y_train:
+        :param validation_data:
+        :param epochs:
+        :param batch_size:
+        :return:
+        """
+
         train_loss = []
         val_loss = []
         for epoch in range(epochs):
             correct = 0
             loss = 0
             for x in range(0, x_train.shape[0], batch_size):
+                # Setting up current batch
                 increment = min(batch_size, x_train.shape[0] - x)
+                mini_x_train = x_train[x:x + increment].reshape(increment, x_train.shape[-1])
+                mini_y_train = y_train[x:x + increment]
 
-                fwd_propagation = self.layers[-1].forward(
-                    x_train[x:x + increment].reshape(increment, x_train.shape[-1]))
-                correct += (np.argmax(fwd_propagation, axis=-1) == np.argmax(y_train[x:x + increment], axis=-1)).sum()
-                temp_loss = self.loss_func.forward(fwd_propagation, y_train[x:x + increment])
+                # Forward propagation - prediction
+                fwd_propagation, temp_correct, temp_loss = self.predict(mini_x_train, mini_y_train)
+                correct += temp_correct
                 loss += temp_loss * increment
 
-                loss_grad = self.loss_func.backward(fwd_propagation, y_train[x:x + increment])
+                # Back-propagation
+                loss_grad = self.loss_func.backward(fwd_propagation, mini_y_train)
                 self.layers[-1].backward(loss_grad)
 
                 Sequential.print_progress(40, x + increment, x_train.shape[0], loss, correct)
@@ -47,21 +106,33 @@ class Sequential:
             if validation_data is not None:
                 x_val, y_val = validation_data
 
-                fwd_propagation = self.layers[-1].forward(x_val)
-                correct_val = (np.argmax(fwd_propagation, axis=-1) == np.argmax(y_val, axis=-1)).sum()
-                curr_loss = self.loss_func.forward(fwd_propagation, y_val)
+                # Forward propagation - prediction
+                fwd_propagation, correct_val, curr_loss = self.predict(x_val, y_val)
 
                 Sequential.print_progress(40, x_train.shape[0], x_train.shape[0], loss, correct, val_loss=curr_loss,
                                           correct_val=correct_val, num_val=y_val.shape[0])
-            val_loss.append(curr_loss)
+                val_loss.append(curr_loss)
             print()
         return train_loss, val_loss
 
     def predict(self, x, y=None):
-        pass
+        """
+
+        :param x:
+        :param y:
+        :return:
+        """
+
+        fwd_propagation = self.layers[-1].forward(x)
+        if y is not None:
+            correct = (np.argmax(fwd_propagation, axis=-1) == np.argmax(y, axis=-1)).sum()
+            loss = self.loss_func.forward(fwd_propagation, y)
+            return fwd_propagation, correct, loss
+        return fwd_propagation, None, None
 
     @staticmethod
-    def print_progress(bars, batch_end, epoch_length, sum_loss, correct, val_loss=None, correct_val=None, num_val=None):
+    def print_progress(bars, batch_end, epoch_length, sum_loss, correct, val_loss=None, correct_val=None,
+                       num_val=None):
         """
 
         :param bars:
@@ -77,12 +148,14 @@ class Sequential:
 
         r = int((batch_end / epoch_length) * bars)
         progressbar = '\r[' + ''.join('=' for _ in range(r)) + '>' + ''.join('-' for _ in range(bars - r)) + '] '
-        progress = '{0:.3f} % ({1:d}/{2:d})'.format(batch_end * 100 / epoch_length, batch_end, epoch_length)
+        progress = '{0:.2f} % ({1:d}/{2:d})'.format(batch_end * 100 / epoch_length, batch_end, epoch_length)
         train_stats = '\t\tloss: {0:.7f}  corr: {1:d}/{2:d} ({3:.2f} %)'.format(sum_loss / batch_end, correct,
-                                                                                batch_end, 100 * correct / batch_end)
+                                                                                batch_end,
+                                                                                100 * correct / batch_end)
         val_stats = ''
         if val_loss is not None:
-            val_stats = '\t\tval_loss: {0:.7f} val_corr: {1:d}/{2:d} ({3:.2f} %)'.format(val_loss, correct_val, num_val,
+            val_stats = '\t\tval_loss: {0:.7f} val_corr: {1:d}/{2:d} ({3:.2f} %)'.format(val_loss, correct_val,
+                                                                                         num_val,
                                                                                          100 * correct_val / num_val)
 
         print(progressbar + progress + train_stats + val_stats, end='')
