@@ -35,29 +35,53 @@ def read_config(path="config.txt"):
     config_dict = {}
     for key, value in config.items():
         for item in config[key]:
-            print(item)
             config_dict[item] = config[key][item]
     return cast_config_dict(config_dict)
 
 
-def create_model():
-    # Special case if 0
-    pass
+def load_data(file_path, num_classes=None):
+    """
+
+    :param file_path:
+    :param num_classes:
+    :return:
+    """
+
+    data = np.genfromtxt(file_path, delimiter=',')
+    x, y = data[:, :-1], data[:, -1]
+
+    num_classes = num_classes if num_classes is not None else y.max() + 1
+    one_hot = np.zeros((y.shape[0], num_classes.astype(int)))
+    one_hot[np.arange(y.shape[0]), y.astype(int)] = 1
+
+    return x, one_hot, num_classes
 
 
-def visualize():
-    pass
+def create_model(units, activations, loss, lr, regularization):
+    x = Layers.Input(units.pop(0))
+    for unit, activation in zip(units, activations):
+        x = Layers.Dense(unit, activation=activation, use_bias=True,
+                         kernel_regularizer=Regularizers.L2(alpha=regularization))(x)
+
+    model = Models.Sequential()
+    model.add(x)
+    model.compile(loss=loss, lr=lr)
+    return model
 
 
-def train_network(model, x_train, y_train, x_val, y_val):
-    pass
+def visualize(close, *args):
+    if close: plt.close('all')
+    for func in args:
+        plt.plot(func['x'], func['y'], label=func['name'])
+    plt.legend()
+    plt.show()
 
 
 if __name__ == '__main__':
     np.random.seed(42)
 
-    data = np.genfromtxt("Data/train_small.csv", delimiter=',')
-    val_data = np.genfromtxt("Data/validate_small.csv", delimiter=',')
+    x_train, y_train, num_classes = load_data("Data/train_small.csv")
+    x_val, y_val, _ = load_data("Data/validate_small.csv")
 
     # import cv2
     #
@@ -67,24 +91,33 @@ if __name__ == '__main__':
     #     cv2.destroyAllWindows()
 
     inp = Layers.Input(784)
-    b = Layers.Dense(512, activation=Activations.ReLu(), use_bias=True, kernel_regularizer=Regularizers.L2())(inp)
-    b = Layers.Dense(256, activation=Activations.ReLu(), use_bias=True, kernel_regularizer=Regularizers.L2())(b)
-    b = Layers.Dense(128, activation=Activations.ReLu(), use_bias=True, kernel_regularizer=Regularizers.L2())(b)
+    b = Layers.Dense(512, activation=Activations.ReLu(), use_bias=True, kernel_regularizer=Regularizers.L1())(inp)
+    b = Layers.Dense(512, activation=Activations.ReLu(), use_bias=True, kernel_regularizer=Regularizers.L2())(b)
+    b = Layers.Dense(512, activation=Activations.ReLu(), use_bias=True, kernel_regularizer=Regularizers.L2())(b)
     b = Layers.Dense(10, activation=Activations.Softmax(), use_bias=True, kernel_regularizer=Regularizers.L2())(b)
     # b = Activations.Softmax()(b)
     model = NN.Models.Sequential()
     model.add(b)
 
-    model.compile(loss=NN.Losses.Cross_Entropy(), lr=0.0000001)
-    (x_train, y_train), (x_val, y_val) = mnist.load_data()
-    x_train = x_train.reshape(x_train.shape[0], 28 * 28) / 255
-    x_val = x_val.reshape(x_val.shape[0], 28 * 28) / 255
-
-    model.fit(x_train,
-              np.array([[1 if x == y_train[y] else 0 for x in range(10)] for y in range(y_train.shape[0])]),
-              validation_data=(x_val, np.array(
-                  [[1 if x == y_val[y] else 0 for x in range(10)] for y in range(y_val.shape[0])])), epochs=20)
-    model.fit(data[:, :784],
-              np.array([[1 if x == data[y, -1] else 0 for x in range(10)] for y in range(data.shape[0])]),
-              validation_data=(val_data[:, :784], np.array(
-                  [[1 if x == val_data[y, -1] else 0 for x in range(10)] for y in range(data.shape[0])])), epochs=200)
+    model.compile(loss=NN.Losses.Cross_Entropy(), lr=0.01)
+    # print(model.save_model("Models"))
+    # (x_train, y_train), (x_val, y_val) = mnist.load_data()
+    # x_train = x_train.reshape(x_train.shape[0], 28 * 28) / 255
+    # x_val = x_val.reshape(x_val.shape[0], 28 * 28) / 255
+    #
+    # model.fit(x_train,
+    #           np.array([[1 if x == y_train[y] else 0 for x in range(10)] for y in range(y_train.shape[0])]),
+    #           validation_data=(x_val, np.array(
+    #               [[1 if x == y_val[y] else 0 for x in range(10)] for y in range(y_val.shape[0])])), epochs=200)
+    #
+    train_loss, val_loss = model.fit(x_train, y_train, validation_data=(x_val, y_val), epochs=20)
+    visualize(True, {'x': list(range(len(train_loss))), 'y': train_loss, 'name': 'train_loss'},
+              {'x': list(range(len(val_loss))), 'y': val_loss, 'name': 'val_loss'})
+    # print(model.predict(x_val, y_val))
+    # print(model.predict(x_val, y_val))
+    # paths = model.save_model("Models", as_txt=True)
+    # model.fit(x_train, y_train, validation_data=(x_val, y_val), epochs=1)
+    # model.load_model(paths)
+    # print(model.predict(x_val, y_val))
+    # print(model.predict(x_val, y_val))
+    # print(model.predict(x_val, y_val))
