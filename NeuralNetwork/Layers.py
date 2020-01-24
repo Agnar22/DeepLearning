@@ -101,16 +101,14 @@ class Dense:
         delta_weights = self.prev_layer_out.transpose() @ temp_gradient
         delta_bias = temp_gradient.transpose().sum(axis=-1, keepdims=True)
 
-        # lr = 0.005
-        # reg = 0.01
-        # reg = 0.05
+        # Updating weights and bias according to reg_loss
         reg_loss = 0
         if self.kernel_regularizer is not None:
             reg_loss = self.kernel_regularizer.loss(self.weights) + self.kernel_regularizer.loss(self.bias)
             self.weights -= self.lr * self.kernel_regularizer.regularizer(self.weights)
             self.bias -= self.lr * self.kernel_regularizer.regularizer(self.bias)
 
-        # Update weights
+        # Update weights and bias
         self.weights -= self.lr * delta_weights
         self.bias -= self.lr * delta_bias
 
@@ -149,17 +147,6 @@ if __name__ == '__main__':
     b = Dense(100, activation=Activations.ReLu(), use_bias=True)(inp)
     b = Dense(100, activation=Activations.ReLu(), use_bias=True)(b)
     b = Dense(100, activation=Activations.ReLu(), use_bias=True)(b)
-    # b = Dense(100, activation=Activations.ReLu())(inp)
-    # b = Dense(10, activation=Activations.ReLu())(b)
-    # b = Dense(2, activation=Activations.Linear())(b)
-    # b = Dense(4, activation=Activations.Softmax(), use_bias=True)(b)
-    # b = Activations.ReLu()(b)
-    # b = Activations.Linear()(b)
-    # b = Activations.Linear()(b)
-    # b = Activations.Linear()(b)
-    # b = Activations.Tanh()(b)
-    # b = Activations.Tanh()(b)
-    # b = Activations.Tanh()(b)
     b = Dense(4, activation=Activations.Softmax())(b)
     for x in range(1000):
         outp = b.forward(np.array([[1], [0.1]]))

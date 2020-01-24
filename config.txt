@@ -1,7 +1,7 @@
 [DATA]
 # training and validation are pointers to the files used for learning
-training=./DATA/train_small.csv
-validation=./DATA/validate_small.csv
+training=./Data/train_small.csv
+validation=./Data/validate_small.csv
 
 [MODEL]
 # layers is a comma-separated list of integers telling us how many nodes in each

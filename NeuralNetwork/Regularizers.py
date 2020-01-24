@@ -8,9 +8,21 @@ class Regularizer:
         self.alpha = alpha
 
     def loss(self, weights):
+        """
+
+        :param weights:
+        :return:
+        """
+
         return self.alpha * self.reg_func(weights).sum() / weights.size
 
     def regularizer(self, weights):
+        """
+
+        :param weights:
+        :return:
+        """
+
         return self.alpha * self.reg_func_der(weights)
 
 

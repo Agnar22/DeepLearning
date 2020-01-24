@@ -68,18 +68,18 @@ def create_model(units, activations, loss, lr, regularization):
     :return:
     """
 
-    # x = Layers.Input(units.pop(0))
+    # Two different ways of creating the model
     model = Models.Sequential()
-    model.add(Layers.Input(units.pop(0)))
+    x = Layers.Input(units.pop(0))
+    # model.add(Layers.Input(units.pop(0)))
     for unit, activation in zip(units, activations):
-        model.add(Layers.Dense(unit, activation=activation(), use_bias=True,
-                         kernel_regularizer=Regularizers.L2(alpha=regularization)))
-        #
-        # x = Layers.Dense(unit, activation=activation(), use_bias=True,
-        #                  kernel_regularizer=Regularizers.L2(alpha=regularization))(x)
+        # model.add(Layers.Dense(unit, activation=activation(), use_bias=True,
+        #                        kernel_regularizer=Regularizers.L2(alpha=regularization)))
 
-    # model = Models.Sequential()
-    # model.add(x)
+        x = Layers.Dense(unit, activation=activation(), use_bias=True,
+                         kernel_regularizer=Regularizers.L2(alpha=regularization))(x)
+
+    model.add(x)
     model.compile(loss=loss(), lr=lr)
     return model
 
@@ -119,10 +119,16 @@ def visualize(close, *args):
 if __name__ == '__main__':
     np.random.seed(42)
 
-    x_train, y_train, num_classes = load_data("Data/train_small.csv")
-    x_val, y_val, _ = load_data("Data/validate_small.csv", num_classes=num_classes)
-
     config = read_config("config.txt")
+
+    x_train, y_train, num_classes = load_data(config['training'])
+    x_val, y_val, _ = load_data(config['validation'], num_classes=num_classes)
+
+    # # # # MNIST DATASET # # #
+    # TODO: turn y into one-hot
+    # (x_train, y_train), (x_val, y_val) = mnist.load_data()
+    # x_train = x_train.reshape(x_train.shape[0], 28 * 28) / 255
+    # x_val = x_val.reshape(x_val.shape[0], 28 * 28) / 255
 
     activations = names_to_classes([Activations.ReLu, Activations.Linear, Activations.Tanh, Activations.Softmax],
                                    config['activations'])
@@ -140,41 +146,13 @@ if __name__ == '__main__':
     visualize(True, {'x': list(range(len(train_loss))), 'y': train_loss, 'name': 'train_loss'},
               {'x': list(range(len(val_loss))), 'y': val_loss, 'name': 'val_loss'})
 
-# import cv2
-#
-# for x in range(data.shape[0]):
-#     cv2.imshow(str(int(data[1970, -1])), val_data[1970, :784].reshape(28, 28))
-#     cv2.waitKey()
-#     cv2.destroyAllWindows()
-#
-# inp = Layers.Input(784)
-# b = Layers.Dense(512, activation=Activations.ReLu(), use_bias=True, kernel_regularizer=Regularizers.L1())(inp)
-# b = Layers.Dense(512, activation=Activations.ReLu(), use_bias=True, kernel_regularizer=Regularizers.L2())(b)
-# b = Layers.Dense(512, activation=Activations.ReLu(), use_bias=True, kernel_regularizer=Regularizers.L2())(b)
-# b = Layers.Dense(10, activation=Activations.Softmax(), use_bias=True, kernel_regularizer=Regularizers.L2())(b)
-# # b = Activations.Softmax()(b)
-# model = NN.Models.Sequential()
-# model.add(b)
-#
-# model.compile(loss=NN.Losses.Cross_Entropy(), lr=0.01)
-# print(model.save_model("Models"))
-# (x_train, y_train), (x_val, y_val) = mnist.load_data()
-# x_train = x_train.reshape(x_train.shape[0], 28 * 28) / 255
-# x_val = x_val.reshape(x_val.shape[0], 28 * 28) / 255
-#
-# model.fit(x_train,
-#           np.array([[1 if x == y_train[y] else 0 for x in range(10)] for y in range(y_train.shape[0])]),
-#           validation_data=(x_val, np.array(
-#               [[1 if x == y_val[y] else 0 for x in range(10)] for y in range(y_val.shape[0])])), epochs=200)
-
-# train_loss, val_loss = model.fit(x_train, y_train, validation_data=(x_val, y_val), epochs=20)
-# visualize(True, {'x': list(range(len(train_loss))), 'y': train_loss, 'name': 'train_loss'},
-#           {'x': list(range(len(val_loss))), 'y': val_loss, 'name': 'val_loss'})
-# print(model.predict(x_val, y_val))
-# print(model.predict(x_val, y_val))
-# paths = model.save_model("Models", as_txt=True)
-# model.fit(x_train, y_train, validation_data=(x_val, y_val), epochs=1)
-# model.load_model(paths)
-# print(model.predict(x_val, y_val))
-# print(model.predict(x_val, y_val))
-# print(model.predict(x_val, y_val))
+    paths = model.save_model("Models", as_txt=True)
+    # model.load_model(paths)
+    #
+    # # # # Visualize data # # #
+    # import cv2
+    #
+    # for x in range(data.shape[0]):
+    #     cv2.imshow(str(int(data[1970, -1])), val_data[1970, :784].reshape(28, 28))
+    #     cv2.waitKey()
+    #     cv2.destroyAllWindows()
