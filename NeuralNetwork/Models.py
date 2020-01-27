@@ -82,9 +82,11 @@ class Sequential:
 
         train_loss = []
         val_loss = []
+        reg_loss = []
         for epoch in range(epochs):
             correct = 0
             loss = 0
+            curr_reg_loss = 0
             for x in range(0, x_train.shape[0], batch_size):
                 # Setting up current batch
                 increment = min(batch_size, x_train.shape[0] - x)
@@ -98,10 +100,11 @@ class Sequential:
 
                 # Back-propagation
                 loss_grad = self.loss_func.backward(fwd_propagation, mini_y_train)
-                self.layers[-1].backward(loss_grad)
+                curr_reg_loss += self.layers[-1].backward(loss_grad) * increment
 
                 Sequential.print_progress(40, x + increment, x_train.shape[0], loss, correct)
             train_loss.append(loss / x_train.shape[0])
+            reg_loss.append(curr_reg_loss / x_train.shape[0])
 
             if validation_data is not None:
                 x_val, y_val = validation_data
@@ -113,6 +116,7 @@ class Sequential:
                                           correct_val=correct_val, num_val=y_val.shape[0])
                 val_loss.append(curr_loss)
             print()
+            print(reg_loss)
         return train_loss, val_loss
 
     def predict(self, x, y=None):
