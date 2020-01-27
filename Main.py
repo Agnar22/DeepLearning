@@ -126,9 +126,12 @@ if __name__ == '__main__':
 
     # # # # MNIST DATASET # # #
     # TODO: turn y into one-hot
-    # (x_train, y_train), (x_val, y_val) = mnist.load_data()
-    # x_train = x_train.reshape(x_train.shape[0], 28 * 28) / 255
-    # x_val = x_val.reshape(x_val.shape[0], 28 * 28) / 255
+    (x_train, y_train), (x_val, y_val) = mnist.load_data()
+    x_train = x_train.reshape(x_train.shape[0], 28 * 28) / 255
+    x_val = x_val.reshape(x_val.shape[0], 28 * 28) / 255
+    y_train=np.array([[1 if x==y_train[n] else 0 for x in range(10)] for n in range(y_train.size)])
+    y_val=np.array([[1 if x==y_val[n] else 0 for x in range(10)] for n in range(y_val.size)])
+
 
     activations = names_to_classes([Activations.ReLu, Activations.Linear, Activations.Tanh, Activations.Softmax],
                                    config['activations'])
