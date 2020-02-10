@@ -8,7 +8,7 @@ class Sequential:
         self.loss_func = None
         self.lr = None
 
-    def add(self, layer):
+    def add(self, layer: any) -> None:
         """
 
         :param layer:
@@ -19,7 +19,7 @@ class Sequential:
             layer(self.layers[-1])
         self.layers.append(layer)
 
-    def save_model(self, file_path, as_txt=False):
+    def save_model(self, file_path: str, as_txt: [bool] = False) -> list:
         """
 
         :param file_path:
@@ -35,7 +35,7 @@ class Sequential:
                                     self.layers)))
         return files
 
-    def load_model(self, file_paths):
+    def load_model(self, file_paths: list) -> None:
         """
 
         :param file_paths:
@@ -46,7 +46,7 @@ class Sequential:
             layer_name = file_path.split('/')[-1]
             list(filter(lambda x: x.name == layer_name, self.layers))[0].load_weights(file_path)
 
-    def compile(self, loss=None, lr=None):
+    def compile(self, loss: float = None, lr: float = None) -> None:
         """
 
         :param loss:
@@ -69,7 +69,8 @@ class Sequential:
         added_layers.extend(self.layers)
         self.layers = added_layers
 
-    def fit(self, x_train, y_train, validation_data=None, epochs=10, batch_size=64):
+    def fit(self, x_train: np.ndarray, y_train: np.ndarray, validation_data: tuple = None,
+            epochs: int = 10, batch_size: int = 64) -> tuple:
         """
 
         :param x_train:
@@ -116,10 +117,10 @@ class Sequential:
                                           correct_val=correct_val, num_val=y_val.shape[0])
                 val_loss.append(curr_loss)
             print()
-            print(reg_loss)
+            # print(reg_loss)
         return train_loss, val_loss
 
-    def predict(self, x, y=None):
+    def predict(self, x: np.ndarray, y: np.ndarray = None) -> tuple:
         """
 
         :param x:
@@ -136,7 +137,7 @@ class Sequential:
 
     @staticmethod
     def print_progress(bars, batch_end, epoch_length, sum_loss, correct, val_loss=None, correct_val=None,
-                       num_val=None):
+                       num_val=None) -> None:
         """
 
         :param bars:

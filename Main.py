@@ -1,9 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import configparser
-import enum
-import sys
-from tensorflow.keras.datasets import mnist
+# from tensorflow.keras.datasets import mnist
 
 from NeuralNetwork import Layers, Activations, Losses, Models, Regularizers
 
@@ -117,21 +115,22 @@ def visualize(close, *args):
 
 
 if __name__ == '__main__':
-    np.random.seed(42)
+    np.random.seed(4)
 
-    config = read_config("config.txt")
+    config = read_config("config_hidden.txt")
 
     x_train, y_train, num_classes = load_data(config['training'])
     x_val, y_val, _ = load_data(config['validation'], num_classes=num_classes)
 
-    # # # # MNIST DATASET # # #
-    # TODO: turn y into one-hot
-    (x_train, y_train), (x_val, y_val) = mnist.load_data()
-    x_train = x_train.reshape(x_train.shape[0], 28 * 28) / 255
-    x_val = x_val.reshape(x_val.shape[0], 28 * 28) / 255
-    y_train=np.array([[1 if x==y_train[n] else 0 for x in range(10)] for n in range(y_train.size)])
-    y_val=np.array([[1 if x==y_val[n] else 0 for x in range(10)] for n in range(y_val.size)])
+    # x_train = np.array([[0, 0], [1, 0], [0, 1], [1, 1]])
+    # y_train = np.array([[0], [0], [0], [1]])
 
+    # # # # MNIST DATASET # # #
+    # (x_train, y_train), (x_val, y_val) = mnist.load_data()
+    # x_train = x_train.reshape(x_train.shape[0], 28 * 28) / 255
+    # x_val = x_val.reshape(x_val.shape[0], 28 * 28) / 255
+    # y_train=np.array([[1 if x==y_train[n] else 0 for x in range(10)] for n in range(y_train.size)])
+    # y_val=np.array([[1 if x==y_val[n] else 0 for x in range(10)] for n in range(y_val.size)])
 
     activations = names_to_classes([Activations.ReLu, Activations.Linear, Activations.Tanh, Activations.Softmax],
                                    config['activations'])
@@ -139,16 +138,21 @@ if __name__ == '__main__':
     loss = names_to_classes([Losses.L2, Losses.Cross_Entropy], [config['loss_type']])[0]
     layers = [x_train.shape[-1]]
     layers.extend(config['layers'])
-    layers.append(num_classes)
+    if config['loss_type'] == 'cross_entropy':
+        layers.append(num_classes)
+    else:
+        layers.append(1)
     if layers[1] == 0: layers.pop(1)
 
     model = create_model(layers, activations, loss, config['learning_rate'], config['l2_regularization'])
-
+    print(model.predict(x_train))
+    # train_loss, val_loss = model.fit(x_train, y_train, validation_data=None, epochs=config['no_epochs'],
+    #                                  batch_size=1)
     train_loss, val_loss = model.fit(x_train, y_train, validation_data=(x_val, y_val), epochs=config['no_epochs'],
                                      batch_size=64)
     visualize(True, {'x': list(range(len(train_loss))), 'y': train_loss, 'name': 'train_loss'},
               {'x': list(range(len(val_loss))), 'y': val_loss, 'name': 'val_loss'})
-
+    print(model.predict(x_train))
     paths = model.save_model("Models", as_txt=True)
     # model.load_model(paths)
     #

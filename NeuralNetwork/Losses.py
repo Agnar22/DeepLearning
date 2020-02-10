@@ -6,7 +6,7 @@ class Loss:
         self.function = function
         self.derivative = derivative
 
-    def forward(self, prediction, target):
+    def forward(self, prediction: np.ndarray, target: np.ndarray) -> np.float64:
         """
 
         :param prediction:
@@ -15,7 +15,7 @@ class Loss:
         """
         return self.function(prediction, target).flatten().sum() / target.shape[0]
 
-    def backward(self, prediction, target):
+    def backward(self, prediction: np.ndarray, target: np.ndarray) -> np.ndarray:
         """
 
         :param prediction:

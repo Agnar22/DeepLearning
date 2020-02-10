@@ -14,7 +14,7 @@ class Activation:
         self.activations = None
         self.prev_layer = None
 
-    def __call__(self, input):
+    def __call__(self, input: any) -> 'Activation':
         """
 
         :param input:
@@ -25,7 +25,7 @@ class Activation:
         self.output_shape = self.prev_layer.output_shape
         return self
 
-    def forward(self, input):
+    def forward(self, input: np.ndarray) -> np.ndarray:
         """
 
         :param input:
@@ -37,7 +37,7 @@ class Activation:
         self.activations = self.function(input)
         return self.activations
 
-    def backward(self, temp_gradient):
+    def backward(self, temp_gradient: np.ndarray) -> np.ndarray:
         """
 
         :param temp_gradient:
@@ -82,7 +82,7 @@ class Softmax(Activation):
                             None)
         self.name = 'softmax'
 
-    def backward(self, temp_gradient):
+    def backward(self, temp_gradient: np.ndarray) -> np.ndarray:
         """
 
         :param temp_gradient:

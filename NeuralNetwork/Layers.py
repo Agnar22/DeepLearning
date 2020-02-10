@@ -11,15 +11,15 @@ class Input:
         self.name = name if name is not None else Input._set_default_name()
 
     @staticmethod
-    def _set_default_name():
+    def _set_default_name() -> str:
         layer_name = "Input_{0:d}".format(Input.num_input_layers)
         Input.num_input_layers += 1
         return layer_name
 
-    def forward(self, input):
+    def forward(self, input: np.ndarray) -> np.ndarray:
         return input
 
-    def backward(self, input):
+    def backward(self, input: np.ndarray) -> int:
         return 0
 
 
@@ -38,7 +38,7 @@ class Dense:
         self.lr = None
 
     @staticmethod
-    def _set_default_name():
+    def _set_default_name() -> str:
         """
 
         :return:
@@ -48,7 +48,7 @@ class Dense:
         Dense.num_dense_layers += 1
         return layer_name
 
-    def __call__(self, inputs):
+    def __call__(self, inputs: any) -> 'Dense':
         """
 
         :param inputs:
@@ -60,18 +60,18 @@ class Dense:
         self.weights = np.random.uniform(low=-0.1, high=0.1, size=(self.input_size, self.output_shape))
         return self
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
 
         :return:
         """
 
-        return 'Weights:\n{0} \n\n Bias:\n{1}'.format(str(self.weights), str(self.bias))
+        return 'Weights:\n{0} \n\n Bias:\n{1}'.format(str(list(self.weights)), str(list(self.bias)))
 
-    def set_lr(self, lr):
+    def set_lr(self, lr: float) -> None:
         self.lr = lr
 
-    def forward(self, input):
+    def forward(self, input: np.ndarray) -> np.ndarray:
         """
 
         :param input:
@@ -87,7 +87,7 @@ class Dense:
             return weighted_sum.transpose()
         return self.activation.forward(weighted_sum.transpose())
 
-    def backward(self, temp_gradient):
+    def backward(self, temp_gradient: np.ndarray) -> float:
         """
 
         :param temp_gradient:
@@ -114,7 +114,7 @@ class Dense:
 
         return reg_loss + self.prev_layer.backward(next_grad)
 
-    def store_as_txt(self, path):
+    def store_as_txt(self, path: str) -> None:
         """
 
         :param path:
@@ -124,7 +124,7 @@ class Dense:
         with open(path + '/' + self.name + '.txt', "w+") as f:
             f.write(str(self))
 
-    def save_weights(self, path):
+    def save_weights(self, path: str) -> str:
         """
 
         :param path:
@@ -137,7 +137,7 @@ class Dense:
         np.save(file_path, self.weights)
         return file_path
 
-    def load_weights(self, file_path):
+    def load_weights(self, file_path: str) -> None:
         print("Loaded", file_path + '.npy')
         self.weights = np.load(file_path + '.npy')
 

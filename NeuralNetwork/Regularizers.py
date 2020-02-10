@@ -7,7 +7,7 @@ class Regularizer:
         self.reg_func_der = reg_func_der
         self.alpha = alpha
 
-    def loss(self, weights):
+    def loss(self, weights: np.ndarray) -> np.float64:
         """
 
         :param weights:
@@ -16,7 +16,7 @@ class Regularizer:
 
         return self.alpha * self.reg_func(weights).sum() / weights.size
 
-    def regularizer(self, weights):
+    def regularizer(self, weights: np.ndarray) -> np.ndarray:
         """
 
         :param weights:
