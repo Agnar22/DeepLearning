@@ -33,7 +33,7 @@ class L2(Loss):
 
 class Cross_Entropy(Loss):
     def __init__(self):
-        Loss.__init__(self, lambda x, y: -y * np.log2(x), lambda x, y: -y / (x))  # * np.log(2)))
+        Loss.__init__(self, lambda x, y: -y * np.log2(x), lambda x, y: -y / (x * np.log(2)))
         self.name = 'cross_entropy'
 
 
