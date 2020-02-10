@@ -69,11 +69,17 @@ class Dense:
         return 'Weights:\n{0} \n\n Bias:\n{1}'.format(str(list(self.weights)), str(list(self.bias)))
 
     def set_lr(self, lr: float) -> None:
+        """
+        Setting the learning rate for the layer
+        :arg
+        """
         self.lr = lr
 
     def forward(self, input: np.ndarray) -> np.ndarray:
         """
-
+        Propagates the input through the layer by calling the previous layer
+        passing the input through the weights, adding bias and applying the
+        activation function.
         :param input:
         :return:
         """
@@ -87,9 +93,10 @@ class Dense:
             return weighted_sum.transpose()
         return self.activation.forward(weighted_sum.transpose())
 
-    def backward(self, temp_gradient: np.ndarray) -> float:
+    def backward(self, temp_gradient: np.ndarray) -> np.float64:
         """
-
+        Calculating the gradient for the weight and bias matrix and adds the gradients.
+        Sending the gradients to the previous layer.
         :param temp_gradient:
         :return:
         """
@@ -116,7 +123,7 @@ class Dense:
 
     def store_as_txt(self, path: str) -> None:
         """
-
+        Storing the weights and bias as txt file
         :param path:
         :return:
         """

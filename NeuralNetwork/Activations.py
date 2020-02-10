@@ -39,7 +39,10 @@ class Activation:
 
     def backward(self, temp_gradient: np.ndarray) -> np.ndarray:
         """
-
+        Calculates the gradient for this layer and sends it to the previous layer.
+        Optimized by representing each jacobian as an array (since most activation
+        functions have zeros on all non-diagonal entries) and thus takes the hadamard
+        product instead of matrix multiplication.
         :param temp_gradient:
         :return:
         """
@@ -84,7 +87,9 @@ class Softmax(Activation):
 
     def backward(self, temp_gradient: np.ndarray) -> np.ndarray:
         """
-
+        Calculates the gradient for this layer and sends it to the previous layer.
+        Cannot be optimized by representing each jacobian as an array, because
+        there are non-zero values on non-diagonal entries
         :param temp_gradient:
         :return:
         """

@@ -10,7 +10,7 @@ class Sequential:
 
     def add(self, layer: any) -> None:
         """
-
+        Adding a layer to the neural network
         :param layer:
         :return:
         """
@@ -72,10 +72,10 @@ class Sequential:
     def fit(self, x_train: np.ndarray, y_train: np.ndarray, validation_data: tuple = None,
             epochs: int = 10, batch_size: int = 64) -> tuple:
         """
-
+        Training the current network on x_train with targets y_train.
         :param x_train:
         :param y_train:
-        :param validation_data:
+        :param validation_data: (x_val, y_val)
         :param epochs:
         :param batch_size:
         :return:
@@ -122,7 +122,7 @@ class Sequential:
 
     def predict(self, x: np.ndarray, y: np.ndarray = None) -> tuple:
         """
-
+        Propagating x through the network and calculates loss if y not None
         :param x:
         :param y:
         :return:
@@ -139,7 +139,7 @@ class Sequential:
     def print_progress(bars, batch_end, epoch_length, sum_loss, correct, val_loss=None, correct_val=None,
                        num_val=None) -> None:
         """
-
+        Printing the progressbar for an epoch
         :param bars:
         :param batch_end:
         :param epoch_length:
