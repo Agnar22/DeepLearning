@@ -103,7 +103,7 @@ class Sequential:
                 loss_grad = self.loss_func.backward(fwd_propagation, mini_y_train)
                 curr_reg_loss += self.layers[-1].backward(loss_grad) * increment
 
-                Sequential.print_progress(40, x + increment, x_train.shape[0], loss, correct)
+                Sequential.print_progress(40, x + increment, x_train.shape[0], loss, correct, curr_reg_loss/(x+increment))
             train_loss.append(loss / x_train.shape[0])
             reg_loss.append(curr_reg_loss / x_train.shape[0])
 
@@ -113,7 +113,7 @@ class Sequential:
                 # Forward propagation - prediction
                 fwd_propagation, correct_val, curr_loss = self.predict(x_val, y_val)
 
-                Sequential.print_progress(40, x_train.shape[0], x_train.shape[0], loss, correct, val_loss=curr_loss,
+                Sequential.print_progress(40, x_train.shape[0], x_train.shape[0], loss, correct, reg_loss[-1], val_loss=curr_loss,
                                           correct_val=correct_val, num_val=y_val.shape[0])
                 val_loss.append(curr_loss)
             print()
@@ -136,7 +136,7 @@ class Sequential:
         return fwd_propagation, None, None
 
     @staticmethod
-    def print_progress(bars, batch_end, epoch_length, sum_loss, correct, val_loss=None, correct_val=None,
+    def print_progress(bars, batch_end, epoch_length, sum_loss, correct, reg_loss, val_loss=None, correct_val=None,
                        num_val=None) -> None:
         """
         Printing the progressbar for an epoch
@@ -154,9 +154,10 @@ class Sequential:
         r = int((batch_end / epoch_length) * bars)
         progressbar = '\r[' + ''.join('=' for _ in range(r)) + '>' + ''.join('-' for _ in range(bars - r)) + '] '
         progress = '{0:.2f} % ({1:d}/{2:d})'.format(batch_end * 100 / epoch_length, batch_end, epoch_length)
-        train_stats = '\t\tloss: {0:.7f}  corr: {1:d}/{2:d} ({3:.2f} %)'.format(sum_loss / batch_end, correct,
+        train_stats = '\t\tloss: {0:.7f}  corr: {1:d}/{2:d} ({3:.2f} % reg_loss: {4:.5f}'.format(sum_loss / batch_end, correct,
                                                                                 batch_end,
-                                                                                100 * correct / batch_end)
+                                                                                100 * correct / batch_end, reg_loss)
+
         val_stats = ''
         if val_loss is not None:
             val_stats = '\t\tval_loss: {0:.7f} val_corr: {1:d}/{2:d} ({3:.2f} %)'.format(val_loss, correct_val,

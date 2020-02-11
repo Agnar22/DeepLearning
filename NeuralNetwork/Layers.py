@@ -26,12 +26,12 @@ class Input:
 class Dense:
     num_dense_layers = 0
 
-    def __init__(self, units, activation=None, use_bias=True, kernel_regularizer=None, name=None):
+    def __init__(self, units, activation=None, use_bias=True, regularizer=None, name=None):
         self.output_shape = units
         self.activation = activation
         self.use_bias = use_bias
         self.bias = np.zeros((units, 1))
-        self.kernel_regularizer = kernel_regularizer
+        self.regularizer = regularizer
         self.name = name if name is not None else Dense._set_default_name()
         self.input_size = None
         self.prev_layer_out = None
@@ -110,10 +110,10 @@ class Dense:
 
         # Updating weights and bias according to reg_loss
         reg_loss = 0
-        if self.kernel_regularizer is not None:
-            reg_loss = self.kernel_regularizer.loss(self.weights) + self.kernel_regularizer.loss(self.bias)
-            self.weights -= self.lr * self.kernel_regularizer.regularizer(self.weights)
-            self.bias -= self.lr * self.kernel_regularizer.regularizer(self.bias)
+        if self.regularizer is not None:
+            reg_loss = self.regularizer.loss(self.weights) + self.regularizer.loss(self.bias)
+            self.weights -= self.lr * self.regularizer.regularizer(self.weights)
+            self.bias -= self.lr * self.regularizer.regularizer(self.bias)
 
         # Update weights and bias
         self.weights -= self.lr * delta_weights

@@ -72,10 +72,10 @@ def create_model(units, activations, loss, lr, regularization):
     # model.add(Layers.Input(units.pop(0)))
     for unit, activation in zip(units, activations):
         # model.add(Layers.Dense(unit, activation=activation(), use_bias=True,
-        #                        kernel_regularizer=Regularizers.L2(alpha=regularization)))
+        #                        regularizer=Regularizers.L2(alpha=regularization)))
 
         x = Layers.Dense(unit, activation=activation(), use_bias=True,
-                         kernel_regularizer=Regularizers.L2(alpha=regularization))(x)
+                         regularizer=Regularizers.L2(alpha=regularization))(x)
 
     model.add(x)
     model.compile(loss=loss(), lr=lr)

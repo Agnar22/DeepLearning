@@ -28,7 +28,7 @@ class Regularizer:
 
 class L2(Regularizer):
     def __init__(self, alpha=0):
-        Regularizer.__init__(self, lambda x: x * x, lambda x: x, alpha=alpha)
+        Regularizer.__init__(self, lambda x: 0.5 * x * x, lambda x: x, alpha=alpha)
 
 
 class L1(Regularizer):
