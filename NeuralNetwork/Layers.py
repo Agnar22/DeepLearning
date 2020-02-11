@@ -105,8 +105,9 @@ class Dense:
         next_grad = np.transpose(self.weights @ np.transpose(temp_gradient))
 
         # Calculate gradients for weights and bias
-        delta_weights = self.prev_layer_out.transpose() @ temp_gradient
-        delta_bias = temp_gradient.transpose().sum(axis=-1, keepdims=True)
+        # print(temp_gradient.shape[0])
+        delta_weights = self.prev_layer_out.transpose() @ temp_gradient / temp_gradient.shape[0]
+        delta_bias = temp_gradient.transpose().sum(axis=-1, keepdims=True) / temp_gradient.shape[0]
 
         # Updating weights and bias according to reg_loss
         reg_loss = 0

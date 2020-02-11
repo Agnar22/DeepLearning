@@ -96,6 +96,7 @@ class Sequential:
 
                 # Forward propagation - prediction
                 fwd_propagation, temp_correct, temp_loss = self.predict(mini_x_train, mini_y_train)
+                # print(fwd_propagation, mini_y_train)
                 correct += temp_correct
                 loss += temp_loss * increment
 
@@ -154,7 +155,7 @@ class Sequential:
         r = int((batch_end / epoch_length) * bars)
         progressbar = '\r[' + ''.join('=' for _ in range(r)) + '>' + ''.join('-' for _ in range(bars - r)) + '] '
         progress = '{0:.2f} % ({1:d}/{2:d})'.format(batch_end * 100 / epoch_length, batch_end, epoch_length)
-        train_stats = '\t\tloss: {0:.7f}  corr: {1:d}/{2:d} ({3:.2f} % reg_loss: {4:.5f}'.format(sum_loss / batch_end, correct,
+        train_stats = '\t\tloss: {0:.7f}  corr: {1:d}/{2:d} ({3:.2f} %) reg_loss: {4:.5f}'.format(sum_loss / batch_end, correct,
                                                                                 batch_end,
                                                                                 100 * correct / batch_end, reg_loss)
 

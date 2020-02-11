@@ -14,7 +14,7 @@ class Regularizer:
         :return:
         """
 
-        return self.alpha * self.reg_func(weights).sum() / weights.size
+        return self.alpha * self.reg_func(weights).sum()
 
     def regularizer(self, weights: np.ndarray) -> np.ndarray:
         """

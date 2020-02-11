@@ -13,6 +13,8 @@ class Loss:
         :param target:
         :return:
         """
+        # print(prediction, target)
+        # print(self.function(prediction, target).flatten().sum() / target.shape[0])
         return self.function(prediction, target).flatten().sum() / target.shape[0]
 
     def backward(self, prediction: np.ndarray, target: np.ndarray) -> np.ndarray:
@@ -28,7 +30,7 @@ class Loss:
 class L2(Loss):
     def __init__(self):
         Loss.__init__(self, lambda x, y: (x - y) ** 2, lambda x, y: 2 * (x - y))
-        self.name = 'l2'
+        self.name = 'L2'
 
 
 class Cross_Entropy(Loss):

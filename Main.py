@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import configparser
-# from tensorflow.keras.datasets import mnist
+from tensorflow.keras.datasets import mnist
 
 from NeuralNetwork import Layers, Activations, Losses, Models, Regularizers
 
@@ -21,7 +21,7 @@ def cast_config_dict(config_dict):
     return config_dict
 
 
-def read_config(path="config.txt"):
+def read_config(path=None):
     """
 
     :param path:
@@ -37,7 +37,7 @@ def read_config(path="config.txt"):
     return cast_config_dict(config_dict)
 
 
-def load_data(file_path, num_classes=None):
+def load_data(file_path, to_one_hot, num_classes=None):
     """
 
     :param file_path:
@@ -49,10 +49,14 @@ def load_data(file_path, num_classes=None):
     x, y = data[:, :-1], data[:, -1]
 
     num_classes = int(num_classes if num_classes is not None else y.max() + 1)
-    one_hot = np.zeros((y.shape[0], num_classes))
-    one_hot[np.arange(y.shape[0]), y.astype(int)] = 1
 
-    return x, one_hot, num_classes
+    if to_one_hot:
+        one_hot = np.zeros((y.shape[0], num_classes))
+        one_hot[np.arange(y.shape[0]), y.astype(int)] = 1
+
+        return x, one_hot, num_classes
+    else:
+        return x, y.reshape(y.size, 1), num_classes
 
 
 def create_model(units, activations, loss, lr, regularization):
@@ -71,11 +75,14 @@ def create_model(units, activations, loss, lr, regularization):
     x = Layers.Input(units.pop(0))
     # model.add(Layers.Input(units.pop(0)))
     for unit, activation in zip(units, activations):
+        if activation == None:
+            x = Layers.Dense(unit, activation=None, use_bias=True,
+                             regularizer=Regularizers.L2(alpha=regularization))(x)
         # model.add(Layers.Dense(unit, activation=activation(), use_bias=True,
         #                        regularizer=Regularizers.L2(alpha=regularization)))
-
-        x = Layers.Dense(unit, activation=activation(), use_bias=True,
-                         regularizer=Regularizers.L2(alpha=regularization))(x)
+        else:
+            x = Layers.Dense(unit, activation=activation(), use_bias=True,
+                             regularizer=Regularizers.L2(alpha=regularization))(x)
 
     model.add(x)
     model.compile(loss=loss(), lr=lr)
@@ -92,6 +99,8 @@ def names_to_classes(classes, names):
 
     correct_classes = []
     for name in names:
+        if name == 'NONE':
+            correct_classes.append(Activations.Linear)
         for curr_class in classes:
             if curr_class().name == name:
                 correct_classes.append(curr_class)
@@ -117,10 +126,10 @@ def visualize(close, *args):
 if __name__ == '__main__':
     np.random.seed(4)
 
-    config = read_config("config_hidden.txt")
+    config = read_config(path="config_ANY_STRUCTURE_CLASS.txt")
 
-    x_train, y_train, num_classes = load_data(config['training'])
-    x_val, y_val, _ = load_data(config['validation'], num_classes=num_classes)
+    x_train, y_train, num_classes = load_data(config['training'], config['loss_type'] == 'cross_entropy')
+    x_val, y_val, _ = load_data(config['validation'], config['loss_type'] == 'cross_entropy', num_classes=num_classes)
 
     # x_train = np.array([[0, 0], [1, 0], [0, 1], [1, 1]])
     # y_train = np.array([[0], [0], [0], [1]])
@@ -129,8 +138,8 @@ if __name__ == '__main__':
     # (x_train, y_train), (x_val, y_val) = mnist.load_data()
     # x_train = x_train.reshape(x_train.shape[0], 28 * 28) / 255
     # x_val = x_val.reshape(x_val.shape[0], 28 * 28) / 255
-    # y_train=np.array([[1 if x==y_train[n] else 0 for x in range(10)] for n in range(y_train.size)])
-    # y_val=np.array([[1 if x==y_val[n] else 0 for x in range(10)] for n in range(y_val.size)])
+    # y_train = np.array([[1 if x == y_train[n] else 0 for x in range(10)] for n in range(y_train.size)])
+    # y_val = np.array([[1 if x == y_val[n] else 0 for x in range(10)] for n in range(y_val.size)])
 
     activations = names_to_classes([Activations.ReLu, Activations.Linear, Activations.Tanh, Activations.Softmax],
                                    config['activations'])
@@ -139,10 +148,14 @@ if __name__ == '__main__':
     layers = [x_train.shape[-1]]
     layers.extend(config['layers'])
     if config['loss_type'] == 'cross_entropy':
+        activations.append(Activations.Softmax)
         layers.append(num_classes)
     else:
+        activations.append(Activations.Linear)
         layers.append(1)
-    if layers[1] == 0: layers.pop(1)
+    if layers[1] == 0:
+        layers.pop(1)
+        activations.pop(0)
 
     model = create_model(layers, activations, loss, config['learning_rate'], config['l2_regularization'])
     print(model.predict(x_train))
