@@ -1,0 +1,31 @@
+[DATA]
+# training and validation are pointers to the files used for learning
+training=./DATA/training.csv
+validation=./DATA/validation.csv
+
+[MODEL]
+# layers is a comma-separated list of integers telling us how many nodes in each
+# hidden layer. Special case: If the value is only one element in the list, and
+# its value is 0, you should generate a net without a hidden layer
+layers = 100, 25, 200, 10
+
+# activations is a comma-separated list of key-words. It will have as many
+# elements as there are elements in the layers-list. Each keyword is a
+# non-linearity function, and legal values are relu, linear, and tanh.
+activations = relu, linear, relu, relu
+
+# loss_type chooses between L2 loss (for regression) and
+# cross_entropy (for classification).
+loss_type = L2
+
+[HYPER]
+# Learning rate to use
+learning_rate=1.e-2
+
+# Number of epochs before finalizing
+no_epochs=50
+
+# What L2-regularization to use to avoid overfitting.
+L2_regularization=0
+
+

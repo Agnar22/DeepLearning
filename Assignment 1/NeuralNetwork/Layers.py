@@ -85,6 +85,7 @@ class Dense:
         """
 
         self.prev_layer_out = self.prev_layer.forward(input)
+        print(np.linalg.norm(self.prev_layer_out))
         weighted_sum = np.transpose(self.weights) @ self.prev_layer_out.transpose()
         if self.use_bias:
             bias = np.repeat(self.bias, weighted_sum.shape[-1], axis=-1)
@@ -106,8 +107,8 @@ class Dense:
 
         # Calculate gradients for weights and bias
         # print(temp_gradient.shape[0])
-        delta_weights = self.prev_layer_out.transpose() @ temp_gradient / temp_gradient.shape[0]
-        delta_bias = temp_gradient.transpose().sum(axis=-1, keepdims=True) / temp_gradient.shape[0]
+        delta_weights = (self.prev_layer_out.transpose() @ temp_gradient) / temp_gradient.shape[0]
+        delta_bias = (temp_gradient.transpose().sum(axis=-1, keepdims=True)) / temp_gradient.shape[0]
 
         # Updating weights and bias according to reg_loss
         reg_loss = 0
