@@ -1,0 +1,17 @@
+{
+  "dataset_name": "./DATASET_NAME",
+  "lr_autoencoder": 0.0001,
+  "lr_classifier": 0.0001,
+  "loss_func_autoencoder": "MSE",
+  "loss_func_classifier": "MSE",
+  "optim_autoencoder": "SGD",
+  "optim_classifier": "SGD",
+  "latent_vector_shape": 10,
+  "epochs_autoencoder": 100,
+  "epochs_classifier": 100,
+  "unsupervised_fraction": 0.7,
+  "labeled_fractions": [0.7, 0.2],
+  "freeze_encoder": false,
+  "num_reconstructions": 25,
+  "show_tSNE": true
+}
