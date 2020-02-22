@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import configparser
 from tensorflow.keras.datasets import mnist
+import time
 
 from NeuralNetwork import Layers, Activations, Losses, Models, Regularizers
 
@@ -131,15 +132,12 @@ if __name__ == '__main__':
     x_train, y_train, num_classes = load_data(config['training'], config['loss_type'] == 'cross_entropy')
     x_val, y_val, _ = load_data(config['validation'], config['loss_type'] == 'cross_entropy', num_classes=num_classes)
 
-    # x_train = np.array([[0, 0], [1, 0], [0, 1], [1, 1]])
-    # y_train = np.array([[0], [0], [0], [1]])
-
     # # # # MNIST DATASET # # #
-    # (x_train, y_train), (x_val, y_val) = mnist.load_data()
-    # x_train = x_train.reshape(x_train.shape[0], 28 * 28) / 255
-    # x_val = x_val.reshape(x_val.shape[0], 28 * 28) / 255
-    # y_train = np.array([[1 if x == y_train[n] else 0 for x in range(10)] for n in range(y_train.size)])
-    # y_val = np.array([[1 if x == y_val[n] else 0 for x in range(10)] for n in range(y_val.size)])
+    (x_train, y_train), (x_val, y_val) = mnist.load_data()
+    x_train = x_train.reshape(x_train.shape[0], 28 * 28) / 255
+    x_val = x_val.reshape(x_val.shape[0], 28 * 28) / 255
+    y_train = np.array([[1 if x == y_train[n] else 0 for x in range(10)] for n in range(y_train.size)])
+    y_val = np.array([[1 if x == y_val[n] else 0 for x in range(10)] for n in range(y_val.size)])
 
     activations = names_to_classes([Activations.ReLu, Activations.Linear, Activations.Tanh, Activations.Softmax],
                                    config['activations'])
@@ -158,11 +156,10 @@ if __name__ == '__main__':
         activations.pop(0)
 
     model = create_model(layers, activations, loss, config['learning_rate'], config['l2_regularization'])
-    print(model.predict(x_train))
-    # train_loss, val_loss = model.fit(x_train, y_train, validation_data=None, epochs=config['no_epochs'],
-    #                                  batch_size=1)
+    now = time.time()
     train_loss, val_loss = model.fit(x_train, y_train, validation_data=(x_val, y_val), epochs=config['no_epochs'],
                                      batch_size=64)
+    print(time.time() - now)
     visualize(True, {'x': list(range(len(train_loss))), 'y': train_loss, 'name': 'train_loss'},
               {'x': list(range(len(val_loss))), 'y': val_loss, 'name': 'val_loss'})
     print(list(model.predict(x_train)))
