@@ -27,9 +27,28 @@ def plot_graphs(close, *args):
     plt.legend()
     plt.show()
 
-def run_tsne(cases):
-    pass
 
+def run_tsne(cases, targets):
+    print(np.array(cases).shape)
+    x_embedded = TSNE(n_components=2).fit_transform(np.array(cases))
+    print(x_embedded.shape)
+    print(type(x_embedded))
+    print(targets)
+    print(type(targets))
+    colours = [100 * targets[x] for x in range(len(targets))]
+    # plt.scatter(x_embedded[:, 0], x_embedded[:, 1], c=colours)
+    # plt.show()
+
+    fig = plt.figure()
+    ax = fig.add_subplot()
+    for num, (color, group) in enumerate(zip(colours, targets)):
+        x, y = x_embedded[num, :]
+        print(num, x, y, group, color)
+        ax.scatter(x, y, alpha=0.8, c=color, edgecolors='none', s=30, label=group)
+
+    plt.title('Matplot scatter plot')
+    plt.legend(loc=2)
+    plt.show()
 
 
 def display_images(img1, img2):
@@ -52,4 +71,6 @@ if __name__ == '__main__':
     print(load_json("config.json"))
 
     data = Model_tf.x_train
-    display_images([data[x].reshape(28, 28, 1) for x in range(10)], [data[y].reshape(28, 28, 1) for y in range(20, 30)])
+    # display_images([data[x].reshape(28, 28, 1) for x in range(10)], [data[y].reshape(28, 28, 1) for y in range(20, 30)])
+    run_tsne(np.array([data[x].reshape(28, 28, 1) for x in range(1000)]).reshape(1000, 784),
+             Model_tf.y_train[:1000].tolist())
