@@ -28,12 +28,9 @@ def create_classifier(encoder=None, freeze_encoder=False, input_shape=None):
 
 
 def create_autoencoder(input_shape):
+    # TODO: conv and transposed conv
     input_data = Input(shape=(input_shape,))
-    # model = tf.keras.Sequential()
     latent_vec = Dense(80, activation='linear')(input_data)
-    # latent_vec = Conv2D(1, (3, 3), activation='relu', kernel_regularizer='l2')(input_data)
-    # x = Conv2DTranspose(1, (3, 3), activation='sigmoid', kernel_regularizer='l2')(latent_vec)
-    # model.add(tf.keras.layers.Conv2D(32, (3, 3)))
     x = Dense(784, activation='sigmoid')(latent_vec)
 
     return Model(input_data, x, name='autoencoder'), (input_data, latent_vec)
