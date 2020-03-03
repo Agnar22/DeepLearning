@@ -1,9 +1,12 @@
 import numpy as np
 import json
 from sklearn.manifold import TSNE
+from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import cv2
 import Model_tf
+import tensorflow as tf
+from tensorflow.keras.optimizers import SGD
 
 
 def load_json(filepath: str) -> json:
@@ -13,7 +16,6 @@ def load_json(filepath: str) -> json:
 
 def plot_graphs(close, *args):
     # TODO: what to visualize?
-    # autoencoder training
     # semi-supervised learning and supervised training
     """
     :param close:
@@ -58,7 +60,47 @@ def display_images(img1, img2):
     cv2.waitKey()
 
 
+def load_data(unlabeled_size, test_size):
+    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+    x = np.concatenate([x_train, x_test])
+    y = np.concatenate([y_train, y_test])
+    x = x / 255
+    x_labeled, x_unlabeled, y_labeled, _ = train_test_split(x, y, test_size=unlabeled_size, random_state=42)
+    x_train, y_train, x_teat, y_test = train_test_split(x_labeled, y_labeled, test_size=test_size, random_state=42)
+    return (x_unlabeled, x_labeled), (x_train, y_train), (x_test, y_test)
+
+
+def setup_networks():
+    autoencoder, encoder = Model_tf.create_autoencoder(784)
+    ssl = Model_tf.create_classifier(encoder=encoder, freeze_encoder=False)
+    classifier = Model_tf.create_classifier(encoder=None, input_shape=784)
+
+    autoencoder.compile(optimizer=SGD(lr=0.01, momentum=0.9), loss='mse')
+    ssl.compile(optimizer=SGD(lr=0.01, momentum=0.9), loss='categorical_crossentropy')
+    classifier.compile(optimizer=SGD(lr=0.01, momentum=0.9), loss='categorical_crossentropy')
+
+    return autoencoder, ssl, classifier
+
+
+def train_network(network, x_train, y_train, val):
+    history = network.fit(x_train, y_train, batch_size=256, epochs=2, validation_data=val).history
+
+    train_loss = history['loss']
+    val_loss = history['val_loss']
+    train_graph = {'x': [x for x in range(len(train_loss))], 'y': train_loss, 'name': 'train'}
+    val_graph = {'x': [x for x in range(len(val_loss))], 'y': val_loss, 'name': 'validation'}
+
+    return train_graph, val_graph
+
+
 if __name__ == '__main__':
+    # INFO:
+    # Dataset:
+    #   -   D = entire dataset = DSS
+    #   -   D1= unlabled datset
+    #   -   D2= lebled dataset              D1+D2=D, D1>>D2
+    #       - Split into train and validation
+
     # Notes:
     # - 4 Different datasets
     # - Only images
@@ -66,11 +108,20 @@ if __name__ == '__main__':
     # TODO:
     # Network should scale number of I/O nodes on the fly
     # Use transposed convolutional layers
-    # Modularity of autoencoder
-    # Can have hidden layers after encoder
     print(load_json("config.json"))
 
-    data = Model_tf.x_train
+    params = load_json("config.json")
+    (x_unlbl_train, x_unlbl_val), (x_train, y_train), (x_test, y_test) = load_data(0.8, 0.1)
+    x_unlbl_train = x_unlbl_train.reshape(-1, 784)
+    x_unlbl_val = x_unlbl_val.reshape(-1, 784)
+
+    autoencoder, ssl, classifier = setup_networks()
+
+    unlbl_train_graph, unlbl_val_graph = train_network(autoencoder, x_unlbl_train, x_unlbl_train,
+                                                       (x_unlbl_val, x_unlbl_val))
+
+    plot_graphs(False, unlbl_train_graph, unlbl_val_graph)
+
     # display_images([data[x].reshape(28, 28, 1) for x in range(10)], [data[y].reshape(28, 28, 1) for y in range(20, 30)])
-    run_tsne(np.array([data[x].reshape(28, 28, 1) for x in range(1000)]).reshape(1000, 784),
-             Model_tf.y_train[:1000].tolist())
+    # run_tsne(np.array([data[x].reshape(28, 28, 1) for x in range(1000)]).reshape(1000, 784),
+    #          Model_tf.y_train[:1000].tolist())
