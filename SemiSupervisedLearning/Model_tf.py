@@ -13,7 +13,7 @@ def create_classifier(encoder=None, freeze_encoder=False, input_shape=None):
         input_data = Input(shape=(input_shape,))
         x = Dense(80, activation='linear')(input_data)
         x = Dense(80, activation='relu')(x)
-        output_layer = Dense(2, activation='softmax')(x)
+        output_layer = Dense(10, activation='softmax')(x)
 
         return Model(input_data, output_layer, name="semi_supervised_classifier")
 
@@ -22,7 +22,7 @@ def create_classifier(encoder=None, freeze_encoder=False, input_shape=None):
     input_layer, latent_vec = encoder
 
     x = Dense(80, activation='relu')(latent_vec)
-    output_layer = Dense(2, activation='softmax')(x)
+    output_layer = Dense(10, activation='softmax')(x)
 
     return Model(input_layer, output_layer, name="semi_supervised_classifier")
 
