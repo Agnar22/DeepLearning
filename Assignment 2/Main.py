@@ -61,6 +61,8 @@ def display_images(img1, img2):
 
 
 def load_data(unlabeled_size, test_size):
+    # TODO: add more datasets
+    #           - requirements: mnist, fashion mnist, +2 other
     (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
     x = np.concatenate([x_train, x_test])
     y = np.concatenate([y_train, y_test])
@@ -82,13 +84,13 @@ def setup_networks():
     return autoencoder, ssl, classifier
 
 
-def train_network(network, x_train, y_train, val):
+def train_network(network, x_train, y_train, val, name=""):
     history = network.fit(x_train, y_train, batch_size=256, epochs=2, validation_data=val).history
 
     train_loss = history['loss']
     val_loss = history['val_loss']
-    train_graph = {'x': [x for x in range(len(train_loss))], 'y': train_loss, 'name': 'train'}
-    val_graph = {'x': [x for x in range(len(val_loss))], 'y': val_loss, 'name': 'validation'}
+    train_graph = {'x': [x for x in range(len(train_loss))], 'y': train_loss, 'name': name + 'train'}
+    val_graph = {'x': [x for x in range(len(val_loss))], 'y': val_loss, 'name': name + 'validation'}
 
     return train_graph, val_graph
 
@@ -111,16 +113,25 @@ if __name__ == '__main__':
     print(load_json("config.json"))
 
     params = load_json("config.json")
-    (x_unlbl_train, x_unlbl_val), (x_train, y_train), (x_test, y_test) = load_data(0.8, 0.1)
+    (x_unlbl_train, x_unlbl_val), (x_train, y_train), (x_val, y_val) = load_data(0.8, 0.1)
     x_unlbl_train = x_unlbl_train.reshape(-1, 784)
     x_unlbl_val = x_unlbl_val.reshape(-1, 784)
 
     autoencoder, ssl, classifier = setup_networks()
 
-    unlbl_train_graph, unlbl_val_graph = train_network(autoencoder, x_unlbl_train, x_unlbl_train,
-                                                       (x_unlbl_val, x_unlbl_val))
+    autoencoder_train_graph, autoencoder_val_graph = train_network(autoencoder, x_unlbl_train, x_unlbl_train,
+                                                                   (x_unlbl_val, x_unlbl_val), name="autoencoder_")
 
-    plot_graphs(False, unlbl_train_graph, unlbl_val_graph)
+    plot_graphs(False, autoencoder_train_graph, autoencoder_val_graph)
+
+    # TODO: Autoencoder reconstrunctions
+    # TODO: Latent vector clusters (tsne)
+
+    ssl_train_graph, ssl_val_graph = train_network(ssl, x_train, y_train, (x_val, y_val), name="ssl_")
+    classifier_train_graph, classifier_val_graph = train_network(classifier, x_train, y_train, (x_val, y_val),
+                                                                 name="classifier_")
+
+    plot_graphs(False, ssl_train_graph, ssl_val_graph, classifier_train_graph, classifier_val_graph)
 
     # display_images([data[x].reshape(28, 28, 1) for x in range(10)], [data[y].reshape(28, 28, 1) for y in range(20, 30)])
     # run_tsne(np.array([data[x].reshape(28, 28, 1) for x in range(1000)]).reshape(1000, 784),
