@@ -1,9 +1,8 @@
 {
   "dataset": {
     "name": "./Data",
-    "dssFractions": 0.2,
-    "d2Training": 0.4,
-    "d2Validation": 0.4
+    "dssFractions": 0.7,
+    "d2Training": 0.8
   },
   "autoencoder": {
     "lr": 0.01,
@@ -18,8 +17,7 @@
     "loss": "mse",
     "optimizer": "SGD",
     "latentSize": 20,
-    "epochs": 30,
-    "freezeEncoder": true
+    "epochs": 30
   },
   "display": {
     "numReconstructions": 10,
