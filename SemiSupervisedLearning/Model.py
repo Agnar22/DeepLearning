@@ -1,120 +1,65 @@
-import torch
-import torchvision as tv
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision.transforms as transforms
-import numpy as np
-from matplotlib import pyplot as plt
+import tensorflow as tf
+from tensorflow.keras.layers import Input, Conv2D, Conv2DTranspose, Dense
+from tensorflow.keras import Model
+from tensorflow.keras.optimizers import SGD
 import cv2
+import numpy as np
 
 
-class Autoencoder:
-    def __init__(self, param):
-        self.param = param
-        self.encoder = Encoder()
-        self.decoder = Decoder()
+def create_classifier(params, encoder=None, freeze_encoder=False, input_shape=None):
+    if encoder == None:
+        print("Creating classifier")
 
-    def fit(self, dataloader):
-        pass
+        input_data = Input(shape=(input_shape,))
+        x = Dense(80, activation='linear')(input_data)
+        x = Dense(80, activation='relu')(x)
+        output_layer = Dense(10, activation='softmax')(x)
 
-    def get_encoder(self):
-        return self.encoder
+        return Model(input_data, output_layer, name="semi_supervised_classifier")
 
+    # TODO: implement freezing of weights
+    print("Creating supervised classifier")
+    input_layer, latent_vec = encoder
 
-class Encoder(nn.Module):
-    def __init__(self):
-        super(Encoder, self).__init__()
-        # self.conv_1 = nn.Conv2d(1, 5, kernel_size=(3, 3))
-        self.conv_1=nn.Linear(784, 256)
-        # self.conv_2 = nn.Conv2d(256, 128, kernel_size=(5, 5))
-        # self.conv_3 = nn.Conv2d(128, 8, kernel_size=(5, 5))
-        self.lv = nn.Linear(256, 20)
+    x = Dense(80, activation='relu')(latent_vec)
+    output_layer = Dense(10, activation='softmax')(x)
 
-    def forward(self, x):
-        # print(x.shape)
-        x = F.relu(self.conv_1(x))
-        # print(x.shape)
-        # x = F.relu(self.conv_2(x))
-        # print(x.shape)
-        # x = F.relu(self.conv_3(x))
-        # print(x.shape)
-        # x = torch.reshape(x, shape=(1, 1, 1, -1))
-        # x = x.view(64, 1, 1, -1)
-        # print(x.shape)
-        x = self.lv(x)
-        return x
+    return Model(input_layer, output_layer, name="semi_supervised_classifier")
 
 
-class Decoder(nn.Module):
-    def __init__(self):
-        super(Decoder, self).__init__()
-        self.conv_1 = nn.Linear(20, 784)
-        # self.conv_2=nn.Linear(256, 512)
-        # self.conv_3=nn.Linear(512, 784)
-        # self.conv_1 = nn.ConvTranspose2d(1, 128, 5)
-        # self.conv_2 = nn.ConvTranspose2d(128, 256, 5)
-        # self.conv_3 = nn.ConvTranspose2d(256, 1, 3)
+def create_autoencoder(input_shape, params):
+    # TODO: conv and transposed conv
+    input_data = Input(shape=(input_shape,))
+    # x = Conv2D(64, (3, 3), activation='relu', padding='same')
+    # latent_vec = Dense(20, activation='linear')(x)
+    # x = Conv2DTranspose(1, (3, 3), activation='sigmoid', padding='same')
+    x = Dense(256, activation='relu', use_bias=True)(input_data)
+    latent_vec = Dense(params['latentSize'], activation='linear', use_bias=True)(x)
+    x = Dense(784, activation='sigmoid', use_bias=True)(latent_vec)
 
-    def forward(self, x):
-        x = F.relu(self.conv_1(x))
-        # x = F.relu(self.conv_2(x))
-        # x = F.relu(self.conv_3(x))
-        # x = torch.reshape(x, shape=(1, 28, 28))
-        x = x.view(-1, 28, 28)
-        return x
+    return Model(input_data, x, name='autoencoder'), (input_data, latent_vec)
 
 
 if __name__ == '__main__':
-    transform = transforms.Compose(
-        [transforms.ToTensor()])
-    cifar_data = tv.datasets.MNIST("./Data", download=True, transform=transform)
-    print(cifar_data[0][0].shape)
-    # for x in range(20):
-    #     cv2.imshow("test"+str(x), cifar_data[x][0].numpy().reshape(28, 28, 1))
-    #     cv2.waitKey()
+    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+    x_train = x_train.reshape(60000, 784) / 255
+    autoencoder, encoder = create_autoencoder((784))
+    autoencoder.compile(optimizer=SGD(lr=0.1, momentum=0.9), loss='mse')
 
-    # cifar_data=np.ndarray(cifar_data[:20])
-    data_loader = torch.utils.data.DataLoader(cifar_data, batch_size=64, shuffle=False, num_workers=8)
+    image = autoencoder.predict(x_train[0].reshape(1, 784))
+    image = np.array(image).reshape(28, 28, 1)
+    cv2.imshow("orig", np.array(x_train[0]).reshape(28, 28, 1))
+    image = np.array(image).reshape(28, 28, 1)
+    cv2.imshow("pred", image)
 
-    encoder = Encoder()
-    decoder = Decoder()
+    print(encoder.predict(x_train[0].reshape(1, 784)).shape)
 
-    criterion = nn.MSELoss()
-    param = list(encoder.parameters()) + list(decoder.parameters())
-    optimizer = torch.optim.SGD(param, lr=0.1, momentum=0.8)
+    for x in range(1):
+        autoencoder.fit(x_train, x_train, batch_size=8, epochs=1)
 
-    for epoch in range(10000):
-        print("New epoch", epoch)
-        for num, (local_batch, local_labels) in enumerate(cifar_data):
-            # if num > 10: break
-            # print(local_batch.shape)
-            # print(local_labels)
-            encoder.zero_grad()
-            decoder.zero_grad()
-
-            # local_batch = local_batch.reshape(-1, 1, 28, 28)
-
-            out_encoder = encoder(local_batch.view(-1, 784))
-
-            # print("out_encoder", out_encoder.shape)
-
-            output = decoder(out_encoder)
-
-            # print("out_decoder", output.shape)
-            loss = criterion(output, local_batch)
-            loss.backward()
-            optimizer.step()
-
-            # for x in decoder.parameters():
-            #     print(x.grad)
-
-            # print(loss)
-            # print(output.shape)
-            if num % 5000 == 0:
-                img = output.detach().numpy()[0, :, :]
-                print(img.shape)
-                cv2.imshow(str(epoch) + "inp", local_batch.numpy().reshape(28, 28, 1))
-                cv2.imshow(str(epoch), img.reshape(28, 28, 1))
-                cv2.waitKey(delay=1)
-                # plt.imshow(img)
-                # cv2.waitKey()
+    for x in range(1000):
+        image = autoencoder.predict(x_train[x].reshape(1, 784))
+        image = np.array(image).reshape(28, 28, 1)
+        cv2.imshow("orig", np.array(x_train[x]).reshape(28, 28, 1))
+        cv2.imshow("pred", image)
+        cv2.waitKey()
