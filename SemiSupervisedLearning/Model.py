@@ -17,18 +17,15 @@ def create_classifier(params, encoder=None, freeze_encoder=False, input_shape=No
 
         return Model(input_data, output_layer, name="semi_supervised_classifier")
 
-    # TODO: implement freezing of weights
-    print("Creating supervised classifier")
-    input_layer, latent_vec = encoder
-
-    x = Dense(80, activation='relu')(latent_vec)
+    input_layer = Input(shape=(input_shape,))
+    x = encoder(input_layer)
+    x = Dense(80, activation='relu')(x)
     output_layer = Dense(10, activation='softmax')(x)
 
     return Model(input_layer, output_layer, name="semi_supervised_classifier")
 
 
 def create_autoencoder(input_shape, params):
-    # TODO: conv and transposed conv
     input_data = Input(shape=(input_shape,))
     # x = Conv2D(64, (3, 3), activation='relu', padding='same')
     # latent_vec = Dense(20, activation='linear')(x)
@@ -37,7 +34,7 @@ def create_autoencoder(input_shape, params):
     latent_vec = Dense(params['latentSize'], activation='linear', use_bias=True)(x)
     x = Dense(784, activation='sigmoid', use_bias=True)(latent_vec)
 
-    return Model(input_data, x, name='autoencoder'), (input_data, latent_vec)
+    return Model(input_data, x, name='autoencoder'), Model(input_data, latent_vec, name='encoder')
 
 
 if __name__ == '__main__':

@@ -1,22 +1,22 @@
 {
   "dataset": {
     "name": "mnist",
-    "dssFraction": 0.1,
-    "d1Fraction": 0.9,
-    "d2Training": 0.8
+    "dssFraction": 0.9,
+    "d1Fraction": 0.7,
+    "d2Training": 0.9
   },
   "autoencoder": {
-    "lr": 0.01,
+    "lr": 0.1,
     "loss": "mse",
-    "optimizer": "SGD",
+    "optimizer": "adam",
     "latentSize": 20,
-    "epochs": 30,
-    "freezeEncoder": true
+    "epochs": 2,
+    "freezeEncoder": false
   },
   "classifier": {
     "lr": 0.01,
     "loss": "categorical_crossentropy",
-    "optimizer": "SGD",
+    "optimizer": "adagrad",
     "latentSize": 20,
     "epochs": 30
   },

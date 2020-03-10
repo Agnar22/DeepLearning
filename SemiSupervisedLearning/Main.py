@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import cv2
 import Model
 import tensorflow as tf
-from tensorflow.keras.optimizers import SGD
+from tensorflow.keras.optimizers import SGD, RMSprop, Adagrad, Adam
 
 
 def load_json(filepath: str) -> json:
@@ -83,23 +83,29 @@ def load_data(name, dss_size, unlabeled_size, test_size, one_hot=False):
     return shape, (x_unlabeled, y_unlabeled), (x_labeled, y_labeled), (x_train, y_train), (x_test, y_test)
 
 
+def get_optimizer(optim_name):
+    optimizers = {"sgd": SGD, "rmsprop": RMSprop, "adagrad": Adagrad, "adam": Adam}
+    return optimizers[optim_name]
+
+
 def setup_networks(params_autoencoder, params_classifier):
     autoencoder, encoder = Model.create_autoencoder(784, params_autoencoder)
-    ssl = Model.create_classifier(params_classifier, encoder=encoder, freeze_encoder=False)
+    ssl = Model.create_classifier(params_classifier, encoder=encoder)
     classifier = Model.create_classifier(params_classifier, encoder=None, input_shape=784)
-    encoder = tf.keras.Model(encoder[0], encoder[1])
 
-    # TODO: use optimizer from parameters
-    autoencoder.compile(optimizer=SGD(lr=params_autoencoder['lr'], momentum=0.9), loss=params_autoencoder['loss'])
-    ssl.compile(optimizer=SGD(lr=params_classifier['lr'], momentum=0.9), loss=params_classifier['loss'],
-                metrics=['accuracy'])
-    classifier.compile(optimizer=SGD(lr=params_classifier['lr'], momentum=0.9), loss=params_classifier['loss'],
-                       metrics=['accuracy'])
+    autoencoder.compile(
+        optimizer=get_optimizer(params_autoencoder['optimizer'])(lr=params_autoencoder['lr']),
+        loss=params_autoencoder['loss'])
+    ssl.compile(optimizer=get_optimizer(params_autoencoder['optimizer'])(lr=params_classifier['lr']),
+                loss=params_classifier['loss'], metrics=['accuracy'])
+    classifier.compile(
+        optimizer=get_optimizer(params_autoencoder['optimizer'])(lr=params_classifier['lr']),
+        loss=params_classifier['loss'], metrics=['accuracy'])
 
     return autoencoder, encoder, ssl, classifier
 
 
-def train_network(network, x_train, y_train, val, batch_size=256, epochs=5, name="", metric='loss'):
+def train_network(network, x_train, y_train, val, batch_size=64, epochs=5, name="", metric='loss'):
     history = network.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, validation_data=val).history
 
     train_loss = history[metric]
@@ -110,19 +116,22 @@ def train_network(network, x_train, y_train, val, batch_size=256, epochs=5, name
     return train_graph, val_graph
 
 
+def freeze_model(model):
+    for layer in model.layers:
+        layer.trainable = False
+
+
 if __name__ == '__main__':
     # TODO:
     # Network should scale number of I/O nodes on the fly
     # Use transposed convolutional layers
-    # Freeze weights
 
-    # INFO:
     # Dataset:
     #   -   D = entire dataset = DSS
     #   -   D1= unlabeled dataset
     #   -   D2= labeled dataset              D1+D2=D, D1>>D2
     #       - Split into train and validation
-    #
+
     # # # # # Load parameters, set up data and create NNs # # # # #
     params = load_json("PivotalParameters.json")
     shape, (x_unlbl_train, y_unlbl_train), (x_unlbl_val, y_unlbl_val), (x_train, y_train), (x_val, y_val) = \
@@ -137,6 +146,10 @@ if __name__ == '__main__':
                                                                    name="autoencoder_")
     plot_graphs(False, autoencoder_train_graph, autoencoder_val_graph)
 
+    if params['autoencoder']['freezeEncoder']:
+        print("freezing encoder")
+        freeze_model(encoder)
+
     # # # # # Display autoencoder reconstructions # # # # #
     display_images([x_unlbl_val[x:x + 1].reshape(shape) for x in range(params['display']['numReconstructions'])],
                    [autoencoder.predict(x_unlbl_val[x:x + 1]).reshape(shape) for x in
@@ -148,7 +161,9 @@ if __name__ == '__main__':
         run_tsne(encoder.predict(x_unlbl_val[:1000]), y_unlbl_val[:1000].tolist())
 
     # # # # # Training the semi-supervised learned and the classifier, plotting the accuracy # # # # #
-    ssl_train_graph, ssl_val_graph = train_network(ssl, x_train, y_train, (x_val, y_val), name="ssl_", metric='acc')
+    ssl_train_graph, ssl_val_graph = train_network(ssl, x_train, y_train, (x_val, y_val),
+                                                   epochs=params['classifier']['epochs'], name="ssl_", metric='acc')
     classifier_train_graph, classifier_val_graph = train_network(classifier, x_train, y_train, (x_val, y_val),
+                                                                 epochs=params['classifier']['epochs'],
                                                                  name="classifier_", metric='acc')
     plot_graphs(False, ssl_train_graph, ssl_val_graph, classifier_train_graph, classifier_val_graph)
