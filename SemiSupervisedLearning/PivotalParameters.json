@@ -1,14 +1,14 @@
 {
   "dataset": {
     "name": "mnist",
-    "dssFraction": 0.9,
+    "dssFraction": 0.8,
     "d1Fraction": 0.7,
     "d2Training": 0.9
   },
   "autoencoder": {
     "lr": 0.1,
     "loss": "mse",
-    "optimizer": "adam",
+    "optimizer": "sgd",
     "latentSize": 20,
     "epochs": 2,
     "freezeEncoder": false
@@ -16,7 +16,7 @@
   "classifier": {
     "lr": 0.01,
     "loss": "categorical_crossentropy",
-    "optimizer": "adagrad",
+    "optimizer": "sgd",
     "latentSize": 20,
     "epochs": 30
   },

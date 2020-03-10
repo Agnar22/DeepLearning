@@ -65,8 +65,11 @@ def load_data(name, dss_size, unlabeled_size, test_size, one_hot=False):
     (x_train, y_train), (x_test, y_test) = get_data(name)
     x = np.concatenate([x_train, x_test])
     y = np.concatenate([y_train, y_test])
-    shape = x.shape[1:]
-    x = x.reshape((x.shape[0], -1))
+    print("in", x.shape)
+    x = x.reshape((*x.shape, 1))
+    input_shape = x.shape[1:]
+    output_shape = y.shape[1:]
+    print("out", output_shape)
     x = x / 255
 
     # Only using a subset of the data
@@ -80,7 +83,10 @@ def load_data(name, dss_size, unlabeled_size, test_size, one_hot=False):
         classes = max(max(y_train), max(y_test)) + 1
         y_train = np.array([to_one_hot(y_train[x], max=classes) for x in range(y_train.shape[0])])
         y_test = np.array([to_one_hot(y_test[x], max=classes) for x in range(y_test.shape[0])])
-    return shape, (x_unlabeled, y_unlabeled), (x_labeled, y_labeled), (x_train, y_train), (x_test, y_test)
+        output_shape = y_train.shape[1:]
+    print("out", output_shape)
+    return input_shape, output_shape, (x_unlabeled, y_unlabeled), (x_labeled, y_labeled), (x_train, y_train), \
+           (x_test, y_test)
 
 
 def get_optimizer(optim_name):
@@ -88,10 +94,11 @@ def get_optimizer(optim_name):
     return optimizers[optim_name]
 
 
-def setup_networks(params_autoencoder, params_classifier):
-    autoencoder, encoder = Model.create_autoencoder(784, params_autoencoder)
-    ssl = Model.create_classifier(params_classifier, encoder=encoder)
-    classifier = Model.create_classifier(params_classifier, encoder=None, input_shape=784)
+def setup_networks(params_autoencoder, params_classifier, input_shape, output_shape):
+    autoencoder, encoder = Model.create_autoencoder(input_shape, params_autoencoder)
+    ssl = Model.create_classifier(encoder=encoder, input_shape=input_shape, output_shape=output_shape)
+    classifier = Model.create_classifier(latent_size=params_autoencoder['latentSize'], input_shape=input_shape,
+                                         output_shape=output_shape)
 
     autoencoder.compile(
         optimizer=get_optimizer(params_autoencoder['optimizer'])(lr=params_autoencoder['lr']),
@@ -122,10 +129,6 @@ def freeze_model(model):
 
 
 if __name__ == '__main__':
-    # TODO:
-    # Network should scale number of I/O nodes on the fly
-    # Use transposed convolutional layers
-
     # Dataset:
     #   -   D = entire dataset = DSS
     #   -   D1= unlabeled dataset
@@ -134,10 +137,12 @@ if __name__ == '__main__':
 
     # # # # # Load parameters, set up data and create NNs # # # # #
     params = load_json("PivotalParameters.json")
-    shape, (x_unlbl_train, y_unlbl_train), (x_unlbl_val, y_unlbl_val), (x_train, y_train), (x_val, y_val) = \
-        load_data(params['dataset']['name'], params['dataset']['dssFraction'], params['dataset']['d1Fraction'],
-                  params['dataset']['d2Training'], one_hot=True)
-    autoencoder, encoder, ssl, classifier = setup_networks(params['autoencoder'], params['classifier'])
+    input_shape, output_shape, (x_unlbl_train, y_unlbl_train), (x_unlbl_val, y_unlbl_val), \
+    (x_train, y_train), (x_val, y_val) = load_data(params['dataset']['name'], params['dataset']['dssFraction'],
+                                                   params['dataset']['d1Fraction'], params['dataset']['d2Training'],
+                                                   one_hot=True)
+    autoencoder, encoder, ssl, classifier = setup_networks(params['autoencoder'], params['classifier'],
+                                                           input_shape, output_shape)
 
     # Training autoencoder on unlabeled data and plotting the loss
     autoencoder_train_graph, autoencoder_val_graph = train_network(autoencoder, x_unlbl_train, x_unlbl_train,
@@ -151,8 +156,8 @@ if __name__ == '__main__':
         freeze_model(encoder)
 
     # # # # # Display autoencoder reconstructions # # # # #
-    display_images([x_unlbl_val[x:x + 1].reshape(shape) for x in range(params['display']['numReconstructions'])],
-                   [autoencoder.predict(x_unlbl_val[x:x + 1]).reshape(shape) for x in
+    display_images([x_unlbl_val[x:x + 1].reshape(input_shape) for x in range(params['display']['numReconstructions'])],
+                   [autoencoder.predict(x_unlbl_val[x:x + 1]).reshape(input_shape) for x in
                     range(params['display']['numReconstructions'])],
                    label=y_unlbl_val)
 
