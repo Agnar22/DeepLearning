@@ -1,8 +1,8 @@
 {
   "dataset": {
-    "name": "mnist",
-    "dssFraction": 0.8,
-    "d1Fraction": 0.7,
+    "name": "fashion_mnist",
+    "dssFraction": 0.6,
+    "d1Fraction": 0.9,
     "d2Training": 0.9
   },
   "autoencoder": {
@@ -10,7 +10,7 @@
     "loss": "mse",
     "optimizer": "sgd",
     "latentSize": 20,
-    "epochs": 2,
+    "epochs": 5,
     "freezeEncoder": false
   },
   "classifier": {
@@ -18,7 +18,7 @@
     "loss": "categorical_crossentropy",
     "optimizer": "sgd",
     "latentSize": 20,
-    "epochs": 30
+    "epochs": 20
   },
   "display": {
     "numReconstructions": 10,

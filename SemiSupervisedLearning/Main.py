@@ -101,12 +101,12 @@ def setup_networks(params_autoencoder, params_classifier, input_shape, output_sh
                                          output_shape=output_shape)
 
     autoencoder.compile(
-        optimizer=get_optimizer(params_autoencoder['optimizer'])(lr=params_autoencoder['lr']),
+        optimizer=get_optimizer(params_autoencoder['optimizer'])(lr=params_autoencoder['lr'], momentum=0.9),
         loss=params_autoencoder['loss'])
-    ssl.compile(optimizer=get_optimizer(params_autoencoder['optimizer'])(lr=params_classifier['lr']),
+    ssl.compile(optimizer=get_optimizer(params_autoencoder['optimizer'])(lr=params_classifier['lr'], momentum=0.9),
                 loss=params_classifier['loss'], metrics=['accuracy'])
     classifier.compile(
-        optimizer=get_optimizer(params_autoencoder['optimizer'])(lr=params_classifier['lr']),
+        optimizer=get_optimizer(params_autoencoder['optimizer'])(lr=params_classifier['lr'], momentum=0.9),
         loss=params_classifier['loss'], metrics=['accuracy'])
 
     return autoencoder, encoder, ssl, classifier
