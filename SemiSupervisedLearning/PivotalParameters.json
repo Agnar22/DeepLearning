@@ -6,7 +6,7 @@
     "d2Training": 0.9
   },
   "autoencoder": {
-    "lr": 0.5,
+    "lr": 0.1,
     "loss": "mse",
     "optimizer": "sgd",
     "latentSize": 30,
@@ -14,7 +14,7 @@
     "freezeEncoder": false
   },
   "classifier": {
-    "lr": 0.01,
+    "lr": 0.05,
     "loss": "categorical_crossentropy",
     "optimizer": "sgd",
     "latentSize": 20,
