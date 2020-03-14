@@ -1,15 +1,15 @@
 {
   "dataset": {
-    "name": "fashion_mnist",
-    "dssFraction": 0.6,
+    "name": "mnist",
+    "dssFraction": 0.4,
     "d1Fraction": 0.9,
     "d2Training": 0.9
   },
   "autoencoder": {
-    "lr": 0.1,
+    "lr": 0.5,
     "loss": "mse",
     "optimizer": "sgd",
-    "latentSize": 20,
+    "latentSize": 30,
     "epochs": 5,
     "freezeEncoder": false
   },
