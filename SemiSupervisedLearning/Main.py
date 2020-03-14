@@ -30,8 +30,8 @@ def plot_graphs(close, *args):
 
 def run_tsne(cases, targets):
     x_embedded = TSNE(n_components=2, perplexity=50).fit_transform(np.array(cases))
-    max_target = max(targets)
-    colours = [int(255 * x / max_target) for x in targets]
+    max_target = max(targets)[0]
+    colours = [int(255 * x[0] / max_target) for x in targets]
     plt.scatter(x_embedded[:, 0], x_embedded[:, 1], c=colours)
     plt.show()
 
@@ -65,11 +65,10 @@ def load_data(name, dss_size, unlabeled_size, test_size, one_hot=False):
     (x_train, y_train), (x_test, y_test) = get_data(name)
     x = np.concatenate([x_train, x_test])
     y = np.concatenate([y_train, y_test])
-    print("in", x.shape)
-    x = x.reshape((*x.shape, 1))
+    if len(x.shape) == 3:
+        x = x.reshape((*x.shape, 1))
     input_shape = x.shape[1:]
     output_shape = y.shape[1:]
-    print("out", output_shape)
     x = x / 255
 
     # Only using a subset of the data
@@ -80,36 +79,39 @@ def load_data(name, dss_size, unlabeled_size, test_size, one_hot=False):
     x_train, x_test, y_train, y_test = train_test_split(x_labeled, y_labeled, test_size=test_size, random_state=42)
 
     if one_hot:
-        classes = max(max(y_train), max(y_test)) + 1
-        y_train = np.array([to_one_hot(y_train[x], max=classes) for x in range(y_train.shape[0])])
-        y_test = np.array([to_one_hot(y_test[x], max=classes) for x in range(y_test.shape[0])])
+        classes = int(max(max(y_train), max(y_test)) + 1)
+        y_train = np.array([to_one_hot(int(y_train[x]), max=classes) for x in range(y_train.shape[0])])
+        y_test = np.array([to_one_hot(int(y_test[x]), max=classes) for x in range(y_test.shape[0])])
         output_shape = y_train.shape[1:]
-    print("out", output_shape)
     return input_shape, output_shape, (x_unlabeled, y_unlabeled), (x_labeled, y_labeled), (x_train, y_train), \
            (x_test, y_test)
 
 
-def get_optimizer(optim_name):
-    optimizers = {"sgd": SGD, "rmsprop": RMSprop, "adagrad": Adagrad, "adam": Adam}
-    return optimizers[optim_name]
+def get_optimizer(optim_name, lr):
+    if optim_name == "sgd":
+        return SGD(learning_rate=lr, momentum=0.9)
+    elif optim_name == "rmsprop":
+        return RMSprop(learning_rate=lr)
+    elif optim_name == "adagrad":
+        return Adagrad(learning_rate=lr)
+    return Adam(learning_rate=lr)
 
 
 def setup_networks(params_autoencoder, params_classifier, input_shape, output_shape):
-    autoencoder, encoder = Model.create_autoencoder(input_shape, params_autoencoder)
-    ssl = Model.create_classifier(encoder=encoder, input_shape=input_shape, output_shape=output_shape)
+    autoencoder, encoder, decoder = Model.create_autoencoder(input_shape, params_autoencoder)
+    ssl = Model.create_classifier(latent_size=params_autoencoder['latentSize'], encoder=encoder,
+                                  input_shape=input_shape, output_shape=output_shape)
     classifier = Model.create_classifier(latent_size=params_autoencoder['latentSize'], input_shape=input_shape,
                                          output_shape=output_shape)
 
     autoencoder.compile(
-        optimizer=get_optimizer(params_autoencoder['optimizer'])(lr=params_autoencoder['lr'], momentum=0.9),
+        optimizer=get_optimizer(params_autoencoder['optimizer'], params_autoencoder['lr']),
         loss=params_autoencoder['loss'])
-    ssl.compile(optimizer=get_optimizer(params_autoencoder['optimizer'])(lr=params_classifier['lr'], momentum=0.9),
-                loss=params_classifier['loss'], metrics=['accuracy'])
     classifier.compile(
-        optimizer=get_optimizer(params_autoencoder['optimizer'])(lr=params_classifier['lr'], momentum=0.9),
+        optimizer=get_optimizer(params_classifier['optimizer'], params_classifier['lr']),
         loss=params_classifier['loss'], metrics=['accuracy'])
 
-    return autoencoder, encoder, ssl, classifier
+    return autoencoder, encoder, decoder, ssl, classifier
 
 
 def train_network(network, x_train, y_train, val, batch_size=64, epochs=5, name="", metric='loss'):
@@ -130,19 +132,23 @@ def freeze_model(model):
 
 if __name__ == '__main__':
     # Dataset:
-    #   -   D = entire dataset = DSS
+    #   -   D = entire dataset
+    #   -   DSS = fraction of D
     #   -   D1= unlabeled dataset
-    #   -   D2= labeled dataset              D1+D2=D, D1>>D2
-    #       - Split into train and validation
+    #   -   D2= labeled dataset              D1+D2=DSS, D1>>D2
 
     # # # # # Load parameters, set up data and create NNs # # # # #
     params = load_json("PivotalParameters.json")
     input_shape, output_shape, (x_unlbl_train, y_unlbl_train), (x_unlbl_val, y_unlbl_val), \
     (x_train, y_train), (x_val, y_val) = load_data(params['dataset']['name'], params['dataset']['dssFraction'],
-                                                   params['dataset']['d1Fraction'], params['dataset']['d2Training'],
+                                                   params['dataset']['d1Fraction'], 1-params['dataset']['d2Training'],
                                                    one_hot=True)
-    autoencoder, encoder, ssl, classifier = setup_networks(params['autoencoder'], params['classifier'],
-                                                           input_shape, output_shape)
+    autoencoder, encoder, _, ssl, classifier = setup_networks(params['autoencoder'], params['classifier'],
+                                                              input_shape, output_shape)
+
+    # # # # # Display TSNE of encoder output (latent vector) before unsupervised training # # # # #
+    if params['display']['show_tsne']:
+        run_tsne(encoder.predict(x_unlbl_val[:1000]), y_unlbl_val[:1000].reshape(-1, 1))
 
     # Training autoencoder on unlabeled data and plotting the loss
     autoencoder_train_graph, autoencoder_val_graph = train_network(autoencoder, x_unlbl_train, x_unlbl_train,
@@ -151,9 +157,12 @@ if __name__ == '__main__':
                                                                    name="autoencoder_")
     plot_graphs(False, autoencoder_train_graph, autoencoder_val_graph)
 
+    # # # # # Freezing encoder and compiles semi-supervised learner
     if params['autoencoder']['freezeEncoder']:
-        print("freezing encoder")
         freeze_model(encoder)
+
+    ssl.compile(optimizer=get_optimizer(params['classifier']['optimizer'], params['classifier']['lr']),
+                loss=params['classifier']['loss'], metrics=['accuracy'])
 
     # # # # # Display autoencoder reconstructions # # # # #
     display_images([x_unlbl_val[x:x + 1].reshape(input_shape) for x in range(params['display']['numReconstructions'])],
@@ -161,9 +170,9 @@ if __name__ == '__main__':
                     range(params['display']['numReconstructions'])],
                    label=y_unlbl_val)
 
-    # # # # # Display TSNE of encoder output (latent vector) # # # # #
+    # # # # # Display TSNE of encoder output (latent vector) after unsupervised training # # # # #
     if params['display']['show_tsne']:
-        run_tsne(encoder.predict(x_unlbl_val[:1000]), y_unlbl_val[:1000].tolist())
+        run_tsne(encoder.predict(x_unlbl_val[:1000]), y_unlbl_val[:1000].reshape(-1, 1))
 
     # # # # # Training the semi-supervised learned and the classifier, plotting the accuracy # # # # #
     ssl_train_graph, ssl_val_graph = train_network(ssl, x_train, y_train, (x_val, y_val),
@@ -172,3 +181,8 @@ if __name__ == '__main__':
                                                                  epochs=params['classifier']['epochs'],
                                                                  name="classifier_", metric='acc')
     plot_graphs(False, ssl_train_graph, ssl_val_graph, classifier_train_graph, classifier_val_graph)
+
+    # # # # # Display TSNE of encoder output (latent vector) after supervised training # # # # #
+    if params['display']['show_tsne']:
+        run_tsne(encoder.predict(x_unlbl_val[:1000]), y_unlbl_val[:1000].reshape(-1, 1))
+
