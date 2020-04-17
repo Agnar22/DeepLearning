@@ -1,4 +1,5 @@
 from auto_encoder import AutoEncoder
+from verification_net import VerificationNet
 from stacked_mnist import DataMode, StackedMNISTData
 from keras.optimizers import SGD
 import numpy as np
@@ -49,12 +50,21 @@ if __name__ == '__main__':
     img, cls = gen.get_random_batch(batch_size=9)
     gen.plot_example(img, cls)
 
-    x, y = gen.get_random_batch(training=True, batch_size=5000)
+    #x, y = gen.get_random_batch(training=True, batch_size=5000)
     
     auto_encoder = AutoEncoder((28, 28, 1), 200)
-    auto_encoder.auto_encoder.compile(optimizer=SGD(0.01, momentum=0.9), loss="mse")
-    auto_encoder.auto_encoder.fit(x, x, batch_size=8, epochs=4)
+    #auto_encoder.auto_encoder.compile(optimizer=SGD(0.01, momentum=0.9), loss="mse")
+    #auto_encoder.auto_encoder.fit(x, x, batch_size=8, epochs=4)
 
     #img = np.around(auto_encoder.auto_encoder.predict(img))
+    auto_encoder.auto_encoder.load_weights('mono_float_missing.h5')
     img = auto_encoder.auto_encoder.predict(img)
+    print((np.random.rand(9, 1, 200) - 0.5 ).shape)
+    #img = auto_encoder.decoder.predict((np.random.rand(9, 1, 200) - 0.5 ) * 2 )
     gen.plot_example(img, cls)
+
+    verifier = VerificationNet()
+    verifier.train(gen)
+    img, cls = gen.get_random_batch(batch_size=2000)
+    img = auto_encoder.auto_encoder.predict(img)
+    verifier.check_predictability(img)
