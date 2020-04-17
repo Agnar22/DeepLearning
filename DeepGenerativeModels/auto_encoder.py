@@ -14,16 +14,19 @@ class AutoEncoder:
         input_layer_encoder = Input(shape=input_shape)
         x = Conv2D(64, (3, 3), strides=2, use_bias=True, padding="same")(input_layer_encoder)
         x = LeakyReLU(alpha=0.05)(x)
-        x = BatchNormalization(axis = -1)(x)
+        x = BatchNormalization(axis=-1)(x)
         x = Conv2D(128, (3, 3), strides=2, activation='relu', use_bias=True, padding="same")(x)
         x = LeakyReLU(alpha=0.05)(x)
-        x = BatchNormalization(axis = -1)(x)
+        x = BatchNormalization(axis=-1)(x)
         x = Conv2D(256, (3, 3), strides=2, activation='relu', use_bias=True, padding="same")(x)
         x = LeakyReLU(alpha=0.05)(x)
-        x = BatchNormalization(axis = -1)(x)
+        x = BatchNormalization(axis=-1)(x)
         x = Flatten()(x)
-        x = Dense(256, activation='relu', use_bias=True)(x)
-        latent_vec = Dense(latent_size, activation='linear', use_bias=True)(x)
+        x = Dense(512, use_bias=True)(x)
+        x = LeakyReLU(alpha=0.05)(x)
+        x = BatchNormalization(axis=-1)(x)
+        x = Dense(latent_size, activation='linear', use_bias=True)(x)
+        latent_vec = BatchNormalization(axis=-1)(x)
         encoder = Model(input_layer_encoder, latent_vec)
 
         for layer in encoder.layers:
@@ -31,10 +34,10 @@ class AutoEncoder:
 
         # Creating the decoder
         input_layer_decoder = Input(shape=encoder.layers[-1].output_shape)
-        x = Dense(256, use_bias=True)(input_layer_decoder)
+        x = Dense(512, use_bias=True)(input_layer_decoder)
         x = LeakyReLU(alpha=0.05)(x)
-        x = BatchNormalization(axis = -1)(x)
-        x = Reshape((4, 4, 16))(x)
+        x = BatchNormalization(axis=-1)(x)
+        x = Reshape((4, 4, 32))(x)
         x = Conv2DTranspose(256, (4, 4), use_bias=True,
                             padding='valid')(x)
         x = LeakyReLU(alpha=0.05)(x)
