@@ -46,25 +46,45 @@ import numpy as np
 
 
 if __name__ == '__main__':
-    gen = StackedMNISTData(mode=DataMode.MONO_FLOAT_MISSING, default_batch_size=9)
-    img, cls = gen.get_random_batch(batch_size=9)
-    gen.plot_example(img, cls)
+    import tensorflow as tf
+    from keras.backend.tensorflow_backend import set_session
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.7)
+    sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+    set_session(sess)
 
-    #x, y = gen.get_random_batch(training=True, batch_size=5000)
+    dataset = "color_binary_complete"
+
+    gen = StackedMNISTData(mode=DataMode.COLOR_FLOAT_COMPLETE, default_batch_size=9)
+    img, cls = gen.get_random_batch(batch_size=9)
+    #gen.plot_example(img, cls)
+
+    x, y = gen.get_full_data_set(training=True)
     
-    auto_encoder = AutoEncoder((28, 28, 1), 200)
-    #auto_encoder.auto_encoder.compile(optimizer=SGD(0.01, momentum=0.9), loss="mse")
-    #auto_encoder.auto_encoder.fit(x, x, batch_size=8, epochs=4)
+    auto_encoder = AutoEncoder((28, 28, 3), 250)
+    auto_encoder.auto_encoder.compile(optimizer=SGD(0.01, momentum=0.99), loss="binary_crossentropy")
+    auto_encoder.auto_encoder.fit(x, x, batch_size=8, epochs=20)
+    auto_encoder.auto_encoder.save(dataset + '.h5')
 
     #img = np.around(auto_encoder.auto_encoder.predict(img))
-    auto_encoder.auto_encoder.load_weights('mono_float_missing.h5')
+    auto_encoder.auto_encoder.load_weights(dataset + '.h5')
     img = auto_encoder.auto_encoder.predict(img)
-    print((np.random.rand(9, 1, 200) - 0.5 ).shape)
+    #print((np.random.rand(9, 1, 200) - 0.5 ).shape)
     #img = auto_encoder.decoder.predict((np.random.rand(9, 1, 200) - 0.5 ) * 2 )
-    gen.plot_example(img, cls)
+    #gen.plot_example(img, cls)
 
-    verifier = VerificationNet()
+    verifier = VerificationNet(file_name = './models/' + dataset + '.h5')
     verifier.train(gen)
     img, cls = gen.get_random_batch(batch_size=2000)
     img = auto_encoder.auto_encoder.predict(img)
-    verifier.check_predictability(img)
+    print(verifier.check_predictability(img, cls))
+   # x, y = gen.get_random_batch(training=True, batch_size=50000)
+   # 
+   # auto_encoder = AutoEncoder((28, 28, 1), 200)
+   # auto_encoder.auto_encoder.compile(optimizer=SGD(0.01, momentum=0.9), loss="mse")
+   # auto_encoder.auto_encoder.fit(x, x, batch_size=8, epochs=15)
+
+   # #img = np.around(auto_encoder.auto_encoder.predict(img))
+   # #img = auto_encoder.auto_encoder.predict(img)
+   # #gen.plot_example(img, cls)
+
+   # auto_encoder.auto_encoder.save('mono_float_missing.h5')
