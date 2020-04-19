@@ -101,15 +101,22 @@ if __name__ == '__main__':
 
     # Initialize data generator, auto encoder and the verification net.
     gen = StackedMNISTData(mode=DataMode.MONO_FLOAT_MISSING, default_batch_size=9)
-    x, y = gen.get_random_batch(training=False, batch_size=20000)
+    #x, y = gen.get_random_batch(training=False, batch_size=20000)
+    x, y = gen.get_full_data_set(training=True)
     verifier = VerificationNet(file_name='./models/' + dataset + '.h5')
-    vae = AE.VAE((28, 28, x.shape[-1]), 20)
+    verifier.train(gen)
+    verifier.load_weights()
+    vae = AE.VAE((28, 28, x.shape[-1]), 40)
     #auto_encoder.load_weights(dataset + '.h5')
-    #auto_encoder.compile(optimizer=SGD(0.01, momentum=0.99), loss=AE.elbo_loss)
-    vae.vae.compile(optimizer=SGD(lr=0.0001, momentum=0.99), loss=vae.elbo_loss)
-    #print(vae.vae.predict(x))
-    vae.vae.fit(x, x, epochs=3, batch_size=8)
+    #vae.vae.compile(optimizer=SGD(lr=0.01, momentum=0.99), loss=vae.elbo_loss)
+    vae.vae.compile(optimizer='adam', loss=vae.elbo_loss)
 
+    vae.vae.fit(x, x, epochs=20, batch_size=128)
+    vae.vae.save(dataset+'.h5')
+    prediction = vae.encoder.predict(x)
+    print(prediction)
+    print(np.mean(prediction))
+    print(np.std(prediction))
 
     reconstruct_images(vae.vae, gen, verifier)
     generate_images(vae.decoder, gen, verifier)

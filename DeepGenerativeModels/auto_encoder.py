@@ -63,10 +63,10 @@ class VAE:
         x = Conv2D(64, (3, 3), strides=2, use_bias=True, padding="same")(input_layer_encoder)
         x = LeakyReLU(alpha=0.05)(x)
         x = BatchNormalization(axis=-1)(x)
-        x = Conv2D(128, (3, 3), strides=2, activation='relu', use_bias=True, padding="same")(x)
+        x = Conv2D(128, (3, 3), strides=2, use_bias=True, padding="same")(x)
         x = LeakyReLU(alpha=0.05)(x)
         x = BatchNormalization(axis=-1)(x)
-        x = Conv2D(256, (3, 3), strides=2, activation='relu', use_bias=True, padding="same")(x)
+        x = Conv2D(256, (3, 3), strides=2, use_bias=True, padding="same")(x)
         x = LeakyReLU(alpha=0.05)(x)
         x = BatchNormalization(axis=-1)(x)
         x = Flatten()(x)
@@ -118,7 +118,5 @@ class VAE:
     def elbo_loss(self, true, pred):
         # Elbo loss =  binary cross-entropy + KL divergence
         rec_loss = K.mean(binary_crossentropy(true, pred), axis=[1, 2])
-        #rec_loss = K.mean(true*K.log(pred) + (1-true)*K.log(1-pred), axis=[1])
-        #rec_loss = mse(true, pred)
         kl_loss = -0.5 * K.mean(1 + self.z_log_var - K.square(self.z_mean) - K.exp(self.z_log_var), axis=[-1])
-        return rec_loss + kl_loss
+        return rec_loss + 0.1*kl_loss
