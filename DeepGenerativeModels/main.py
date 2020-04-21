@@ -1,4 +1,5 @@
 import auto_encoder as AE
+import dcgan
 from verification_net import VerificationNet
 from stacked_mnist import DataMode, StackedMNISTData
 from keras.optimizers import SGD
@@ -101,23 +102,26 @@ if __name__ == '__main__':
 
     # Initialize data generator, auto encoder and the verification net.
     gen = StackedMNISTData(mode=DataMode.MONO_FLOAT_MISSING, default_batch_size=9)
-    #x, y = gen.get_random_batch(training=False, batch_size=20000)
-    x, y = gen.get_full_data_set(training=True)
+    x, y = gen.get_random_batch(training=False, batch_size=200)
+    #x, y = gen.get_full_data_set(training=True)
     verifier = VerificationNet(file_name='./models/' + dataset + '.h5')
-    verifier.train(gen)
+    #verifier.train(gen)
     verifier.load_weights()
-    vae = AE.VAE((28, 28, x.shape[-1]), 40)
+    #vae = AE.VAE((28, 28, x.shape[-1]), 40)
+    gan = dcgan.DCGan((30,), colors=False)
     #auto_encoder.load_weights(dataset + '.h5')
     #vae.vae.compile(optimizer=SGD(lr=0.01, momentum=0.99), loss=vae.elbo_loss)
-    vae.vae.compile(optimizer='adam', loss=vae.elbo_loss)
+    #vae.vae.compile(optimizer='adam', loss=vae.elbo_loss)
+    #vae.vae.load_weights(dataset+'_vae.h5')
+    gan.fit(gen, batch_size=64, epochs=10)
 
-    vae.vae.fit(x, x, epochs=20, batch_size=128)
-    vae.vae.save(dataset+'.h5')
-    prediction = vae.encoder.predict(x)
-    print(prediction)
-    print(np.mean(prediction))
-    print(np.std(prediction))
+    #vae.vae.fit(x, x, epochs=20, batch_size=128)
+    #vae.vae.save(dataset+'.h5')
+    #prediction = vae.encoder.predict(x)
+    #print(prediction)
+    #print(np.mean(prediction))
+    #print(np.std(prediction))
 
-    reconstruct_images(vae.vae, gen, verifier)
-    generate_images(vae.decoder, gen, verifier)
-    anomaly_detection(vae.vae, gen)
+    #reconstruct_images(vae.vae, gen, verifier)
+    #generate_images(gan.generator, gen, verifier)
+    #anomaly_detection(vae.vae, gen)
