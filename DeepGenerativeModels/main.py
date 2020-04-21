@@ -113,7 +113,10 @@ if __name__ == '__main__':
     #vae.vae.compile(optimizer=SGD(lr=0.01, momentum=0.99), loss=vae.elbo_loss)
     #vae.vae.compile(optimizer='adam', loss=vae.elbo_loss)
     #vae.vae.load_weights(dataset+'_vae.h5')
-    gan.fit(gen, batch_size=64, epochs=10)
+    gan.fit(gen, batch_size=64, epochs=20)
+
+    gan.generator.save(dataset+'_generator.h5')
+    gan.discriminator.save(dataset+'_discriminator.h5')
 
     #vae.vae.fit(x, x, epochs=20, batch_size=128)
     #vae.vae.save(dataset+'.h5')
@@ -123,5 +126,5 @@ if __name__ == '__main__':
     #print(np.std(prediction))
 
     #reconstruct_images(vae.vae, gen, verifier)
-    #generate_images(gan.generator, gen, verifier)
+    generate_images(gan.generator, gen, verifier)
     #anomaly_detection(vae.vae, gen)
