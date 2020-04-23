@@ -2,8 +2,9 @@ import auto_encoder as AE
 import dcgan
 from verification_net import VerificationNet
 from stacked_mnist import DataMode, StackedMNISTData
-from keras.optimizers import SGD
 import numpy as np
+import json
+
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
 
@@ -48,13 +49,54 @@ from keras.backend.tensorflow_backend import set_session
 # TIPS:
 # - Tensorflow v.1.14.0 w/Keras v.2.2.4 (import keras)
 
+def read_json(filepath):
+    with open(filepath) as f:
+        return json.load(f)
+
+
+def get_data_mode(data_mode):
+    data_modes = [
+        DataMode.MONO_FLOAT_COMPLETE,
+        DataMode.MONO_FLOAT_MISSING,
+        DataMode.MONO_BINARY_COMPLETE,
+        DataMode.MONO_BINARY_MISSING,
+        DataMode.COLOR_FLOAT_COMPLETE,
+        DataMode.COLOR_FLOAT_MISSING,
+        DataMode.COLOR_BINARY_COMPLETE,
+        DataMode.COLOR_BINARY_MISSING
+    ]
+    data_mode_name = [
+        'mono_float_complete',
+        'mono_float_missing',
+        'mono_binary_complete',
+        'mono_binary_missing',
+        'color_float_complete',
+        'color_float_missing',
+        'color_binary_complete',
+        'color_binary_missing'
+    ]
+
+    return data_modes[data_mode_name.index(data_mode)]
+
+
+def create_model(model_name, latent_size):
+    # TODO: insert color dimension
+    if model_name == 'ae':
+        return AE.create_auto_encoder((28, 28, 1), latent_size)
+    elif model_name == 'vae':
+        vae = AE.VAE((28, 28, 1), latent_size)
+        return vae.vae, vae.encoder, vae.decoder
+    elif model_name == 'dcgan':
+        gan = dcgan.DCGan(latent_size, False)
+        return gan, gan.generator, gan.discriminator
+
 
 def reconstruct_images(auto_encoder, gen, verifier):
     img, cls = gen.get_full_data_set(training=False)
     rec_img = auto_encoder.predict(img)
 
     predictability, accuracy = verifier.check_predictability(rec_img, correct_labels=cls)
-    print(f"Reconstruction predictability is {predictability:.2f} and accuracy is {accuracy:.2f}.")
+    print(f"Reconstruction predictability is {predictability:.3f} and accuracy is {accuracy:.3f}.")
 
     img_b, cls_b = gen.get_random_batch(training=False, batch_size=9)
     gen.plot_example(images=img_b, labels=cls_b)
@@ -68,13 +110,13 @@ def generate_images(decoder, gen, verification):
     rand_latent_vec = np.random.normal(0, 1, 1000 * latent_shape).reshape(1000, latent_shape)
     gen_img = decoder.predict(rand_latent_vec)
     _, rand_cls = gen.get_random_batch(batch_size=9)
+    gen.plot_example(images=gen_img[:9, :, :], labels=rand_cls)
 
     predictability, _ = verification.check_predictability(gen_img)
-    print(predictability)
     coverage = verification.check_class_coverage(gen_img)
-    print(coverage)
+    print("Predictability is {0:.3f} and coverage is {1:.3f}".format(predictability, coverage))
 
-    gen.plot_example(images=gen_img[:9, :, :], labels=rand_cls)
+    return gen_img
 
 
 def anomaly_detection(auto_encoder, gen, rec_loss_func=lambda x, y: np.mean((x - y) ** 2, axis=(1, 2, 3))):
@@ -88,43 +130,44 @@ def anomaly_detection(auto_encoder, gen, rec_loss_func=lambda x, y: np.mean((x -
     gen.plot_example(images=x[ind], labels=cls[ind])
     gen.plot_example(images=rec_img[ind], labels=cls[ind])
 
-if __name__ == '__main__':
-    # TODO: load pivotal parameters
-    # TODO: VAE
-    # TODO: DCGAN
 
-    # Set max gpu usage.
+if __name__ == '__main__':
+
+    # Limit gpu usage.
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.7)
     sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
     set_session(sess)
 
-    dataset = "mono_float_missing"
+    param = read_json('pivotal_parameters.json')
+    dataset = param['dataset']
 
-    # Initialize data generator, auto encoder and the verification net.
-    gen = StackedMNISTData(mode=DataMode.MONO_FLOAT_MISSING, default_batch_size=9)
-    x, y = gen.get_random_batch(training=False, batch_size=200)
-    #x, y = gen.get_full_data_set(training=True)
-    verifier = VerificationNet(file_name='./models/' + dataset + '.h5')
-    #verifier.train(gen)
-    verifier.load_weights()
-    #vae = AE.VAE((28, 28, x.shape[-1]), 40)
-    gan = dcgan.DCGan((30,), colors=False)
-    #auto_encoder.load_weights(dataset + '.h5')
-    #vae.vae.compile(optimizer=SGD(lr=0.01, momentum=0.99), loss=vae.elbo_loss)
-    #vae.vae.compile(optimizer='adam', loss=vae.elbo_loss)
-    #vae.vae.load_weights(dataset+'_vae.h5')
-    gan.fit(gen, batch_size=64, epochs=20)
+    # Initialize data generator.
+    gen = StackedMNISTData(mode=get_data_mode(dataset), default_batch_size=9)
 
-    gan.generator.save(dataset+'_generator.h5')
-    gan.discriminator.save(dataset+'_discriminator.h5')
+    # Initialize verification net.
+    force_learn = param['verification']['force_learn']
+    verifier = VerificationNet(file_name='./models/' + dataset + '.h5', force_learn=force_learn)
+    if param['verification']['load_weights']:
+        verifier.load_weights()
+    if force_learn:
+        verifier.train(gen)
 
-    #vae.vae.fit(x, x, epochs=20, batch_size=128)
-    #vae.vae.save(dataset+'.h5')
-    #prediction = vae.encoder.predict(x)
-    #print(prediction)
-    #print(np.mean(prediction))
-    #print(np.std(prediction))
+    # Initialize model, encoder and decoder.
+    model, encoder, decoder = create_model(param['model'], param['latent_size'])
 
-    #reconstruct_images(vae.vae, gen, verifier)
-    generate_images(gan.generator, gen, verifier)
-    #anomaly_detection(vae.vae, gen)
+    if param['load_weights']:
+        model.load_weights(dataset)
+    if param['train']:
+        model.fit(gen, batch_size=64, epochs=10)
+    if param['save_weights']:
+        model.save_weights(dataset)
+
+    input("Press enter to reconstruct images.")
+    print("Reconstructing images")
+    reconstruct_images(model, gen, verifier)
+    input("Press enter to generate images.")
+    print("Generating images")
+    generate_images(encoder, gen, verifier)
+    input("Press enter to reconstruct images.")
+    print("Reconstructing images")
+    anomaly_detection(model, gen)
