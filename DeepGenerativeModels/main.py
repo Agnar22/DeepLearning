@@ -2,6 +2,7 @@ import auto_encoder as AE
 import dcgan
 from verification_net import VerificationNet
 from stacked_mnist import DataMode, StackedMNISTData
+
 import numpy as np
 import json
 
@@ -65,6 +66,7 @@ def get_data_mode(data_mode):
         DataMode.COLOR_BINARY_COMPLETE,
         DataMode.COLOR_BINARY_MISSING
     ]
+
     data_mode_name = [
         'mono_float_complete',
         'mono_float_missing',
@@ -82,10 +84,10 @@ def get_data_mode(data_mode):
 def create_model(model_name, latent_size):
     # TODO: insert color dimension
     if model_name == 'ae':
-        return AE.create_auto_encoder((28, 28, 1), latent_size)
+        return AE.AE((28, 28, 1), latent_size, variational=False)
     elif model_name == 'vae':
-        vae = AE.VAE((28, 28, 1), latent_size)
-        return vae.vae, vae.encoder, vae.decoder
+        vae = AE.AE((28, 28, 1), latent_size, variational=False)
+        return vae.ae, vae.encoder, vae.decoder
     elif model_name == 'dcgan':
         gan = dcgan.DCGan(latent_size, False)
         return gan, gan.generator, gan.discriminator
@@ -132,6 +134,10 @@ def anomaly_detection(auto_encoder, gen, rec_loss_func=lambda x, y: np.mean((x -
 
 
 if __name__ == '__main__':
+    # TODO: xxx_binary_xxx annet loss elno?
+    # TODO: trene alle agentene
+    # TODO: gå gjennom alle testene
+    # TODO: skrive 2 sider i latex om hvordan man løser mode collapse
 
     # Limit gpu usage.
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.7)
@@ -156,18 +162,22 @@ if __name__ == '__main__':
     model, encoder, decoder = create_model(param['model'], param['latent_size'])
 
     if param['load_weights']:
-        model.load_weights(dataset)
+        model.load_weights(dataset + '.h5')
     if param['train']:
         model.fit(gen, batch_size=64, epochs=10)
     if param['save_weights']:
-        model.save_weights(dataset)
+        model.save_weights(dataset + '.h5')
 
-    input("Press enter to reconstruct images.")
-    print("Reconstructing images")
-    reconstruct_images(model, gen, verifier)
+    if param['model'] != 'dcgan':
+        input("Press enter to reconstruct images.")
+        print("Reconstructing images")
+        reconstruct_images(model, gen, verifier)
+
     input("Press enter to generate images.")
     print("Generating images")
     generate_images(encoder, gen, verifier)
-    input("Press enter to reconstruct images.")
-    print("Reconstructing images")
-    anomaly_detection(model, gen)
+
+    if param['model'] != 'dcgan':
+        input("Press enter to reconstruct images.")
+        print("Reconstructing images")
+        anomaly_detection(model, gen)

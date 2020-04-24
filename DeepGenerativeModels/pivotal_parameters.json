@@ -1,0 +1,15 @@
+{
+  "dataset": "mono_float_complete",
+  "train": false,
+  "latent_size": 40,
+  "model": "ae",
+  "load_weights": false,
+  "save_weights": false,
+  "auto_encoder": {
+    "variational": false
+  },
+  "verification": {
+    "force_learn": false,
+    "load_weights": true
+  }
+}
