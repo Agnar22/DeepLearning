@@ -81,10 +81,10 @@ def get_data_mode(data_mode):
     return data_modes[data_mode_name.index(data_mode)]
 
 
-def create_model(model_name, latent_size, color=False):
+def create_model(model_name, latent_size, color=False, binary=False):
     # TODO: insert color dimension
     if model_name == 'ae':
-        ae = AE.AE((28, 28, 3 if color else 1), latent_size, variational=False)
+        ae = AE.AE((28, 28, 3 if color else 1), latent_size, variational=False, binary=binary)
         return ae, ae.encoder, ae.decoder
     elif model_name == 'vae':
         vae = AE.AE((28, 28, 3 if color else 1), latent_size, variational=True)
@@ -105,7 +105,7 @@ def reconstruct_images(auto_encoder, gen, verifier):
     gen.plot_example(images=img_b, labels=cls_b)
     rec_img_b = auto_encoder.predict(img_b)
     gen.plot_example(images=rec_img_b, labels=cls_b)
-    return rec_img
+    return predictability, accuracy, rec_img
 
 
 def generate_images(decoder, gen, verification):
@@ -119,7 +119,7 @@ def generate_images(decoder, gen, verification):
     coverage = verification.check_class_coverage(gen_img)
     print("Predictability is {0:.3f} and coverage is {1:.3f}".format(predictability, coverage))
 
-    return gen_img
+    return predictability, gen_img
 
 
 def anomaly_detection(auto_encoder, gen, rec_loss_func=lambda x, y: np.mean((x - y) ** 2, axis=(1, 2, 3))):
@@ -147,43 +147,80 @@ if __name__ == '__main__':
     set_session(sess)
 
     param = read_json('pivotal_parameters.json')
-    dataset = param['dataset']
+    #dataset = param['dataset']
 
-    # Initialize data generator.
-    gen = StackedMNISTData(mode=get_data_mode(dataset), default_batch_size=9)
+    data_mode_name = [
+        'mono_float_complete',
+        'mono_float_missing',
+        'mono_binary_complete',
+        'mono_binary_missing',
+        'color_float_complete',
+        'color_float_missing',
+        'color_binary_complete',
+        'color_binary_missing'
+    ]
+    
+    models = ['ae', 'vae', 'dcgan']
+    
+    for model_name in models:
+        for dataset in data_mode_name:
+            if model_name == 'ae':
+                if 'mono' in dataset:
+                    latent_size = 40
+                else:
+                    latent_size = 80
+            else:
+                latent_size = 20
 
-    # Initialize verification net.
-    force_learn = param['verification']['force_learn']
-    verifier = VerificationNet(file_name='./models/' + dataset + '.h5', force_learn=force_learn)
-    if param['verification']['load_weights']:
-        verifier.load_weights()
-    if force_learn:
-        verifier.train(gen)
+            # Initialize verification net.
+            force_learn = param['verification']['force_learn']
+            verifier = VerificationNet(file_name='./models/' + dataset + '.h5', force_learn=force_learn)
+            model, encoder, decoder = create_model(model_name, latent_size, color='color' in dataset, binary='binary' in dataset)
+            gen = StackedMNISTData(mode=get_data_mode(dataset), default_batch_size=9)
+            if param['verification']['load_weights']:
+                verifier.load_weights()
+            if force_learn:
+                verifier.train(gen)
+            try:
+                model.load_weights(dataset + '.h5')
+            except Exception as e:
+                print(e)
+            rec_pred, rec_acc, _ = reconstruct_images(model, gen, verifier)
+            while rec_pred < 0.83 or rec_acc < 0.83:
+                # Initialize data generator.
 
-    # Initialize model, encoder and decoder.
-    model, encoder, decoder = create_model(param['model'], param['latent_size'], color='color' in dataset)
+                # Initialize verification net.
+               # force_learn = param['verification']['force_learn']
+               # verifier = VerificationNet(file_name='./models/' + dataset + '.h5', force_learn=force_learn)
+               # if param['verification']['load_weights']:
+               #     verifier.load_weights()
+               # if force_learn:
+               #     verifier.train(gen)
 
-    if param['load_weights']:
-        model.load_weights(dataset + '.h5')
-    if param['train']:
-        model.fit(gen, batch_size=128, epochs=30)
-    if param['save_weights']:
-        model.save_weights(dataset + '.h5')
-    x, _ = gen.get_full_data_set(training=True)
-    #print(model.z_mean_mod.predict(x).mean())
-    #print(np.abs(model.z_log_var_mod.predict(x)).mean())
+                # Initialize model, encoder and decoder.
+                #model, encoder, decoder = create_model(param['model'], param['latent_size'], color='color' in dataset)
+                print("Training on dataset {0} with {1}".format(dataset, model_name))
 
-    if param['model'] != 'dcgan':
-        input("Press enter to reconstruct images.")
-        print("Reconstructing images")
-        reconstruct_images(model, gen, verifier)
+                if param['load_weights']:
+                    model.load_weights(dataset + '.h5')
+                if param['train']:
+                    model.fit(gen, batch_size=128, epochs=20)
+                if param['save_weights']:
+                    model.save_weights(dataset + '.h5')
+                x, _ = gen.get_full_data_set(training=True)
 
-    input("Press enter to generate images.")
-    print("Generating images")
-    generate_images(decoder, gen, verifier)
+                rec_pred, rec_acc, _ = reconstruct_images(model, gen, verifier)
+               # if param['model'] != 'dcgan':
+               #     input("Press enter to reconstruct images.")
+               #     print("Reconstructing images")
+               #     reconstruct_images(model, gen, verifier)
 
-    if param['model'] != 'dcgan':
-        input("Press enter to reconstruct images.")
-        print("Reconstructing images")
-        anomaly_detection(model, gen)
+               # input("Press enter to generate images.")
+               # print("Generating images")
+               # generate_images(decoder, gen, verifier)
+
+               # if param['model'] != 'dcgan':
+               #     input("Press enter to reconstruct images.")
+               #     print("Reconstructing images")
+               #     anomaly_detection(model, gen)
 

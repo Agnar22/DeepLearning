@@ -55,15 +55,15 @@ def create_auto_encoder(input_shape, latent_size):
 
 
 class AE:
-    def __init__(self, input_shape, latent_size, variational=False):
+    def __init__(self, input_shape, latent_size, variational=False, binary=False):
         self.z = None
         self.z_mean = None
         self.z_log_var = None
         self.ae, self.encoder, self.decoder = self.create_auto_encoder(input_shape, latent_size,
-                                                                       variational)
+                                                                       variational, binary)
         self.weights_dir = 'models_vae' if variational else 'models_ae'
 
-    def create_auto_encoder(self, input_shape, latent_size, variational):
+    def create_auto_encoder(self, input_shape, latent_size, variational, binary):
         # Creating the encoder
         input_layer_encoder = Input(shape=input_shape)
         x = Conv2D(128, (3, 3), strides=2, use_bias=True, padding="same")(input_layer_encoder)
@@ -113,8 +113,10 @@ class AE:
         if variational:
             #auto_encoder.compile(optimizer=Adam(lr=0.0005), loss=self.elbo_loss)
             auto_encoder.compile(optimizer=Adam(lr=0.002), loss=self.elbo_loss)
-        else:
+        elif binary:
             auto_encoder.compile(optimizer='adam', loss='binary_crossentropy')
+        else:
+            auto_encoder.compile(optimizer='adam', loss='mse')
 
         encoder.summary()
         decoder.summary()
@@ -129,7 +131,8 @@ class AE:
 
     def fit(self, gen, batch_size=64, epochs=10):
         x, _ = gen.get_full_data_set(training=True)
-        self.ae.fit(x, x, batch_size=batch_size, epochs=epochs)
+        x_val, _ = gen.get_full_data_set(training=False)
+        self.ae.fit(x, x, validation_data=(x_val, x_val), batch_size=batch_size, epochs=epochs)
 
     def predict(self, x):
         return self.ae.predict(x)
