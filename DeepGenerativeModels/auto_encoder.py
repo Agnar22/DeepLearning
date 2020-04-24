@@ -53,11 +53,16 @@ def create_auto_encoder(input_shape, latent_size):
     return auto_encoder, encoder, decoder
 
 
-class VAE:
-    def __init__(self, input_shape, latent_size):
-        self.vae, self.encoder, self.decoder = self.create_variational_auto_encoder(input_shape, latent_size)
+class AE:
+    def __init__(self, input_shape, latent_size, variational=False):
+        self.z = None
+        self.z_mean = None
+        self.z_log_var = None
+        self.ae, self.encoder, self.decoder = self.create_auto_encoder(input_shape, latent_size,
+                                                                       variational)
+        self.weights_dir = 'models_vae' if variational else 'models_ae'
 
-    def create_variational_auto_encoder(self, input_shape, latent_size):
+    def create_auto_encoder(self, input_shape, latent_size, variational):
         # Creating the encoder
         input_layer_encoder = Input(shape=input_shape)
         x = Conv2D(64, (3, 3), strides=2, use_bias=True, padding="same")(input_layer_encoder)
@@ -73,9 +78,12 @@ class VAE:
         x = Dense(512, use_bias=True)(x)
         x = LeakyReLU(alpha=0.05)(x)
         x = BatchNormalization(axis=-1)(x)
-        self.z_mean = Dense(latent_size)(x)
-        self.z_log_var = Dense(latent_size)(x)
-        self.z = Lambda(self.sampling, output_shape=(latent_size,))([self.z_mean, self.z_log_var])
+        if variational:
+            self.z_mean = Dense(latent_size)(x)
+            self.z_log_var = Dense(latent_size)(x)
+            self.z = Lambda(self.sampling, output_shape=(latent_size,))([self.z_mean, self.z_log_var])
+        else:
+            self.z = Dense(latent_size, activation='linear', use_bias=True)(x)
         encoder = Model(input_layer_encoder, self.z, name="encoder")
 
         # Creating the decoder
@@ -97,8 +105,12 @@ class VAE:
         decoder = Model(input_layer_decoder, x, name='decoder')
 
         ae_output = decoder(encoder(input_layer_encoder))
+        auto_encoder = Model(input_layer_encoder, ae_output, name='auto_encoder')
 
-        auto_encoder = Model(input_layer_encoder, ae_output, name='autoencoder')
+        if variational:
+            auto_encoder.compile(optimizer='adam', loss=self.elbo_loss)
+        else:
+            auto_encoder.compile(optimizer='adam', loss='binary_crossentropy')
 
         encoder.summary()
         decoder.summary()
@@ -106,7 +118,17 @@ class VAE:
         for layer in auto_encoder.layers:
             print(layer.output_shape)
 
-        return auto_encoder, encoder, decoder
+        return self, encoder, decoder
+
+    def load_weights(self, filename):
+        self.ae.save(self.weights_dir + '/' + filename)
+
+    def fit(self, gen, batch_size=64, epochs=10):
+        x, _ = gen.get_full_data_set(training=True)
+        self.ae.fit(x, x, batch_size=batch_size, epochs=epochs)
+
+    def save_weights(self, filename):
+        self.ae.load_weights(self.weights_dir + '/' + filename)
 
     def sampling(self, args):
         z_mean, z_log_var = args
@@ -119,4 +141,4 @@ class VAE:
         # Elbo loss =  binary cross-entropy + KL divergence
         rec_loss = K.mean(binary_crossentropy(true, pred), axis=[1, 2])
         kl_loss = -0.5 * K.mean(1 + self.z_log_var - K.square(self.z_mean) - K.exp(self.z_log_var), axis=[-1])
-        return rec_loss + 0.1*kl_loss
+        return 0.9 * rec_loss + 0.1 * kl_loss
