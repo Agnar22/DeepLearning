@@ -1,5 +1,5 @@
 import auto_encoder as AE
-import dcgan
+import keras_dcgan as dcgan
 from verification_net import VerificationNet
 from stacked_mnist import DataMode, StackedMNISTData
 
@@ -81,16 +81,17 @@ def get_data_mode(data_mode):
     return data_modes[data_mode_name.index(data_mode)]
 
 
-def create_model(model_name, latent_size):
+def create_model(model_name, latent_size, color=False):
     # TODO: insert color dimension
     if model_name == 'ae':
-        return AE.AE((28, 28, 1), latent_size, variational=False)
+        ae = AE.AE((28, 28, 3 if color else 1), latent_size, variational=False)
+        return ae, ae.encoder, ae.decoder
     elif model_name == 'vae':
-        vae = AE.AE((28, 28, 1), latent_size, variational=False)
-        return vae.ae, vae.encoder, vae.decoder
+        vae = AE.AE((28, 28, 3 if color else 1), latent_size, variational=True)
+        return vae, vae.encoder, vae.decoder
     elif model_name == 'dcgan':
-        gan = dcgan.DCGan(latent_size, False)
-        return gan, gan.generator, gan.discriminator
+        gan = dcgan.DCGAN(color)
+        return gan, gan.discriminator, gan.generator
 
 
 def reconstruct_images(auto_encoder, gen, verifier):
@@ -136,6 +137,7 @@ def anomaly_detection(auto_encoder, gen, rec_loss_func=lambda x, y: np.mean((x -
 if __name__ == '__main__':
     # TODO: xxx_binary_xxx annet loss elno?
     # TODO: trene alle agentene
+    # TODO: anomalies for vae
     # TODO: gå gjennom alle testene
     # TODO: skrive 2 sider i latex om hvordan man løser mode collapse
 
@@ -159,14 +161,17 @@ if __name__ == '__main__':
         verifier.train(gen)
 
     # Initialize model, encoder and decoder.
-    model, encoder, decoder = create_model(param['model'], param['latent_size'])
+    model, encoder, decoder = create_model(param['model'], param['latent_size'], color='color' in dataset)
 
     if param['load_weights']:
         model.load_weights(dataset + '.h5')
     if param['train']:
-        model.fit(gen, batch_size=64, epochs=10)
+        model.fit(gen, batch_size=128, epochs=30)
     if param['save_weights']:
         model.save_weights(dataset + '.h5')
+    x, _ = gen.get_full_data_set(training=True)
+    #print(model.z_mean_mod.predict(x).mean())
+    #print(np.abs(model.z_log_var_mod.predict(x)).mean())
 
     if param['model'] != 'dcgan':
         input("Press enter to reconstruct images.")
@@ -175,9 +180,10 @@ if __name__ == '__main__':
 
     input("Press enter to generate images.")
     print("Generating images")
-    generate_images(encoder, gen, verifier)
+    generate_images(decoder, gen, verifier)
 
     if param['model'] != 'dcgan':
         input("Press enter to reconstruct images.")
         print("Reconstructing images")
         anomaly_detection(model, gen)
+

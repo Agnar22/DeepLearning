@@ -1,5 +1,6 @@
 from keras.layers import Conv2D, Conv2DTranspose, Dense, Flatten, Input, Reshape
 from keras.layers import LeakyReLU, BatchNormalization, Lambda
+from keras.optimizers import Adam, SGD
 from keras.losses import binary_crossentropy, mse
 from keras.models import Model
 from keras import backend as K
@@ -65,22 +66,24 @@ class AE:
     def create_auto_encoder(self, input_shape, latent_size, variational):
         # Creating the encoder
         input_layer_encoder = Input(shape=input_shape)
-        x = Conv2D(64, (3, 3), strides=2, use_bias=True, padding="same")(input_layer_encoder)
+        x = Conv2D(128, (3, 3), strides=2, use_bias=True, padding="same")(input_layer_encoder)
         x = LeakyReLU(alpha=0.05)(x)
         x = BatchNormalization(axis=-1)(x)
-        x = Conv2D(128, (3, 3), strides=2, use_bias=True, padding="same")(x)
+        x = Conv2D(256, (3, 3), strides=2, use_bias=True, padding="same")(x)
         x = LeakyReLU(alpha=0.05)(x)
         x = BatchNormalization(axis=-1)(x)
         x = Conv2D(256, (3, 3), strides=2, use_bias=True, padding="same")(x)
         x = LeakyReLU(alpha=0.05)(x)
         x = BatchNormalization(axis=-1)(x)
         x = Flatten()(x)
-        x = Dense(512, use_bias=True)(x)
+        x = Dense(256, use_bias=True)(x)
         x = LeakyReLU(alpha=0.05)(x)
         x = BatchNormalization(axis=-1)(x)
         if variational:
             self.z_mean = Dense(latent_size)(x)
+            #self.z_mean_mod = Model(input_layer_encoder, self.z_mean)
             self.z_log_var = Dense(latent_size)(x)
+            #self.z_log_var_mod = Model(input_layer_encoder, self.z_log_var)
             self.z = Lambda(self.sampling, output_shape=(latent_size,))([self.z_mean, self.z_log_var])
         else:
             self.z = Dense(latent_size, activation='linear', use_bias=True)(x)
@@ -88,15 +91,15 @@ class AE:
 
         # Creating the decoder
         input_layer_decoder = Input(shape=(latent_size,))
-        x = Dense(512, use_bias=True)(input_layer_decoder)
+        x = Dense(256, use_bias=True)(input_layer_decoder)
         x = LeakyReLU(alpha=0.05)(x)
         x = BatchNormalization(axis=-1)(x)
-        x = Reshape((4, 4, 32))(x)
+        x = Reshape((4, 4, 16))(x)
         x = Conv2DTranspose(256, (4, 4), use_bias=True,
                             padding='valid')(x)
         x = LeakyReLU(alpha=0.05)(x)
         x = BatchNormalization(axis=-1)(x)
-        x = Conv2DTranspose(128, (3, 3), strides=2, use_bias=True,
+        x = Conv2DTranspose(256, (3, 3), strides=2, use_bias=True,
                             padding='same')(x)
         x = LeakyReLU(alpha=0.05)(x)
         x = BatchNormalization(axis=-1)(x)
@@ -108,7 +111,8 @@ class AE:
         auto_encoder = Model(input_layer_encoder, ae_output, name='auto_encoder')
 
         if variational:
-            auto_encoder.compile(optimizer='adam', loss=self.elbo_loss)
+            #auto_encoder.compile(optimizer=Adam(lr=0.0005), loss=self.elbo_loss)
+            auto_encoder.compile(optimizer=Adam(lr=0.002), loss=self.elbo_loss)
         else:
             auto_encoder.compile(optimizer='adam', loss='binary_crossentropy')
 
@@ -118,24 +122,27 @@ class AE:
         for layer in auto_encoder.layers:
             print(layer.output_shape)
 
-        return self, encoder, decoder
+        return auto_encoder, encoder, decoder
 
     def load_weights(self, filename):
-        self.ae.save(self.weights_dir + '/' + filename)
+        self.ae.load_weights('./' + self.weights_dir + '/' + filename)
 
     def fit(self, gen, batch_size=64, epochs=10):
         x, _ = gen.get_full_data_set(training=True)
         self.ae.fit(x, x, batch_size=batch_size, epochs=epochs)
 
+    def predict(self, x):
+        return self.ae.predict(x)
+
     def save_weights(self, filename):
-        self.ae.load_weights(self.weights_dir + '/' + filename)
+        self.ae.save('./' + self.weights_dir + '/' + filename)
 
     def sampling(self, args):
         z_mean, z_log_var = args
         batch = K.shape(z_mean)[0]
         dim = K.int_shape(z_mean)[1]
         epsilon = K.random_normal(shape=(batch, dim), dtype=tf.float32)
-        return z_mean + K.exp(0.5 * z_log_var) * epsilon
+        return z_mean + K.exp(z_log_var) * epsilon
 
     def elbo_loss(self, true, pred):
         # Elbo loss =  binary cross-entropy + KL divergence
