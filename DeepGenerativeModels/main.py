@@ -133,21 +133,8 @@ def anomaly_detection(auto_encoder, gen, rec_loss_func=lambda x, y: np.mean((x -
     gen.plot_example(images=x[ind], labels=cls[ind])
     gen.plot_example(images=rec_img[ind], labels=cls[ind])
 
-
-if __name__ == '__main__':
-    # TODO: xxx_binary_xxx annet loss elno?
-    # TODO: trene alle agentene
-    # TODO: anomalies for vae
-    # TODO: gå gjennom alle testene
-    # TODO: skrive 2 sider i latex om hvordan man løser mode collapse
-
-    # Limit gpu usage.
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.7)
-    sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
-    set_session(sess)
-
+def train_all():
     param = read_json('pivotal_parameters.json')
-    #dataset = param['dataset']
 
     data_mode_name = [
         'mono_float_complete',
@@ -160,7 +147,7 @@ if __name__ == '__main__':
         'color_binary_missing'
     ]
     
-    models = ['ae', 'vae', 'dcgan']
+    models = ['vae', 'dcgan']
     
     for model_name in models:
         for dataset in data_mode_name:
@@ -170,7 +157,14 @@ if __name__ == '__main__':
                 else:
                     latent_size = 80
             else:
-                latent_size = 20
+                if 'mono' in dataset:
+                    latent_size = 20
+                else:
+                    latent_size = 40
+            if model_name == 'ae' and (dataset=='color_float_missing' or dataset=='color_binary_missing'):
+                continue
+            if (dataset=='color_float_complete' or dataset=='color_binary_missing'):
+                continue
 
             # Initialize verification net.
             force_learn = param['verification']['force_learn']
@@ -186,7 +180,7 @@ if __name__ == '__main__':
             except Exception as e:
                 print(e)
             rec_pred, rec_acc, _ = reconstruct_images(model, gen, verifier)
-            while rec_pred < 0.83 or rec_acc < 0.83:
+            while rec_pred < 0.805 or rec_acc < 0.805:
                 # Initialize data generator.
 
                 # Initialize verification net.
@@ -223,4 +217,59 @@ if __name__ == '__main__':
                #     input("Press enter to reconstruct images.")
                #     print("Reconstructing images")
                #     anomaly_detection(model, gen)
+
+
+
+if __name__ == '__main__':
+    # TODO: trene alle agentene
+    # TODO: anomalies for vae
+    # TODO: gå gjennom alle testene
+    # TODO: skrive 2 sider i latex om hvordan man løser mode collapse
+
+    # Limit gpu usage.
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.7)
+    sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+    set_session(sess)
+
+    param = read_json('pivotal_parameters.json')
+    dataset = param['dataset']
+
+    # Initialize verification net.
+    force_learn = param['verification']['force_learn']
+    verifier = VerificationNet(file_name='./models/' + dataset + '.h5', force_learn=force_learn)
+    model, encoder, decoder = create_model(param['model'], param['latent_size'], color='color' in dataset, binary='binary' in dataset)
+    gen = StackedMNISTData(mode=get_data_mode(dataset), default_batch_size=9)
+
+    if param['verification']['load_weights']:
+        verifier.load_weights()
+    if force_learn:
+        verifier.train(gen)
+
+    print("Training on dataset {0} with {1}".format(dataset, param['model']))
+    while True:
+        x, _ = gen.get_full_data_set(training=True)
+        if param['load_weights']:
+            model.load_weights(dataset + '.h5')
+        if param['train']:
+            model.fit(gen, verifier=verifier, batch_size=32, epochs=4000000, save_interval=500, filename=dataset+'.h5')
+            #print(model.z_mean_mod.predict(x).mean())
+            #print(np.abs(model.z_log_var_mod.predict(x)).mean())
+        if param['save_weights']:
+            model.save_weights(dataset + '.h5')
+
+        rec_pred, rec_acc, _ = reconstruct_images(model, gen, verifier)
+        if param['model'] != 'dcgan':
+            #input("Press enter to reconstruct images.")
+            print("Reconstructing images")
+            reconstruct_images(model, gen, verifier)
+
+        #input("Press enter to generate images.")
+        print("Generating images")
+        generate_images(decoder, gen, verifier)
+
+        if param['model'] != 'dcgan':
+            #input("Press enter to reconstruct images.")
+            print("Reconstructing images")
+            anomaly_detection(model, gen)
+
 
