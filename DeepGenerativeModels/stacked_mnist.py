@@ -224,6 +224,7 @@ class StackedMNISTData:
             if self.channels == 1:
                 plt.imshow(images[img_idx, :, :, 0], cmap="binary")
             else:
+                image1234=images[img_idx, :, :, :].astype(np.float)
                 plt.imshow(images[img_idx, :, :, :].astype(np.float))
             plt.xticks([])
             plt.yticks([])

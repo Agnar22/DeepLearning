@@ -1,13 +1,10 @@
 {
-  "dataset": "mono_float_complete",
+  "dataset": "color_float_complete",
   "train": false,
-  "latent_size": 40,
-  "model": "ae",
-  "load_weights": false,
+  "latent_size": 256,
+  "model": "dcgan",
+  "load_weights": true,
   "save_weights": false,
-  "auto_encoder": {
-    "variational": false
-  },
   "verification": {
     "force_learn": false,
     "load_weights": true

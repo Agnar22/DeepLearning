@@ -1,147 +1,141 @@
+from __future__ import print_function, division
+
+from keras.layers import Input, Dense, Reshape, Flatten, Conv2DTranspose
+from keras.layers import BatchNormalization, Activation
+from keras.layers.advanced_activations import LeakyReLU
+from keras.layers.convolutional import Conv2D
+from keras.models import Sequential, Model
+from keras.optimizers import Adam
+from keras.backend.tensorflow_backend import set_session
 import tensorflow as tf
-#from tf.keras.layers import Conv2D, Conv2DTranspose, Dense, Flatten, Input, Reshape
-#from tf.keras.layers import LeakyReLU, BatchNormalization, Lambda
-#from tf.keras.regularizers import l2
-#from tf.keras.constraints import max_norm, Constraint
-#from tf.keras.losses import binary_crossentropy, mse
-#from tf.keras.models import Model, Sequential
-#from tf.keras.optimizers import Adam, SGD
-#from tf.keras import backend as K
-import main
+
+from stacked_mnist import DataMode, StackedMNISTData
 from verification_net import VerificationNet
 import numpy as np
-import math
 
-#class ClipConstraint(Constraint):
-#
-#    def __init__(self, clip_value):
-#        self.clip_value=clip_value
-#
-#    def __call__(self, weights):
-#        return K.clip(weights, -self.clip_value, self.clip_value)
-#    
-#    def get_config(self):
-#        return {'clip_value':self.clip_value}
 
-def create_generator(z_size, colors=False):
-    generator = tf.keras.models.Sequential()
-    generator.add(tf.keras.layers.Dense(3*3*384, input_shape = z_size, activation='relu'))
-    generator.add(tf.keras.layers.Reshape((3, 3, 384)))
-    generator.add(tf.keras.layers.Conv2DTranspose(192, 5, strides=1, padding='valid', activation='relu', kernel_initializer='glorot_normal'))
-    generator.add(tf.keras.layers.BatchNormalization())
-    generator.add(tf.keras.layers.Conv2DTranspose(96, 5, strides=2, padding='same', activation='relu', kernel_initializer='glorot_normal'))
-    generator.add(tf.keras.layers.BatchNormalization())
-    generator.add(tf.keras.layers.Conv2DTranspose(1, 5, strides=2, activation='sigmoid', padding='same'))
-    return generator
+class DCGAN():
+    def __init__(self, color):
+        # Input shape
+        self.img_shape = (28, 28, 3 if color else 1)
+        self.latent_dim = 100
 
-def create_discriminator(z_size, colors=False):
-    discriminator = tf.keras.models.Sequential()
-    discriminator.add(tf.keras.layers.Conv2D(64, (3, 3), input_shape = (28, 28, 3 if colors else 1), strides=2, use_bias=True,
-        padding="same", kernel_regularizer=tf.keras.regularizers.l2(0.001)))
-    discriminator.add(tf.keras.layers.LeakyReLU(alpha=0.2))
-    discriminator.add(tf.keras.layers.BatchNormalization())
-    discriminator.add(tf.keras.layers.Conv2D(128, (3, 3), strides=2, use_bias=True, padding="same", kernel_regularizer=tf.keras.regularizers.l2(0.001)))
-    discriminator.add(tf.keras.layers.LeakyReLU(alpha=0.2))
-    discriminator.add(tf.keras.layers.BatchNormalization())
-    discriminator.add(tf.keras.layers.Conv2D(256, (3, 3), strides=2, use_bias=True, padding="same", kernel_regularizer=tf.keras.regularizers.l2(0.001)))
-    discriminator.add(tf.keras.layers.LeakyReLU(alpha=0.2))
-    discriminator.add(tf.keras.layers.BatchNormalization(beta_regularizer=tf.keras.regularizers.l2(0.01), gamma_regularizer=tf.keras.regularizers.l2(0.001)))
-    discriminator.add(tf.keras.layers.Flatten())
-    discriminator.add(tf.keras.layers.Dense(1, activation='sigmoid', use_bias=True, kernel_regularizer=tf.keras.regularizers.l2(0.001)))
-    discriminator.compile(optimizer=tf.keras.optimizers.Adam(lr=0.0002, beta_1=0.5), loss='binary_crossentropy')
-    return discriminator
+        # Build and compile the discriminator
+        self.discriminator = self.create_discriminator(color)
+        self.discriminator.compile(loss='binary_crossentropy',
+                                   optimizer=Adam(0.0005, 0.5),
+                                   metrics=['accuracy'])
 
-def create_gan(generator, discriminator, z_size, colors=False):
-    #discriminator.trainable=False
-    for layer in discriminator.layers:
-       layer.trainable=False
-    gan = tf.keras.models.Sequential()
-    gan.add(generator)
-    gan.add(discriminator)
-    #gan.layers[1].trainable=False
-    gan.compile(optimizer=tf.keras.optimizers.Adam(lr=0.0002, beta_1=0.5), loss='binary_crossentropy')
+        self.generator = self.create_generator(color)
 
-    #discriminator.trainable=True
-    generator.summary()
-    discriminator.summary()
-    gan.summary()
+        z = Input(shape=(self.latent_dim,))
+        img = self.generator(z)
+        self.discriminator.trainable = False
+        pred = self.discriminator(img)
+        self.combined = Model(z, pred)
+        self.combined.compile(loss='binary_crossentropy', optimizer=Adam(0.0001, 0.5))
 
-    print(gan.trainable_weights)
-    print(discriminator.trainable_weights)
-    return gan
+    def create_generator(self, color):
+        # Create the generator.
+        model = Sequential()
+        model.add(Dense(128 * 7 * 7, activation="relu", input_dim=self.latent_dim))
+        model.add(Reshape((7, 7, 128)))
+        model.add(Conv2DTranspose(128, 3, padding='same', strides=2))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(Activation("relu"))
+        model.add(Conv2DTranspose(256, 3, padding='same', strides=2))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(Activation("relu"))
+        model.add(Conv2D(3 if color else 1, 3, padding='same'))
+        model.add(Activation("tanh"))
+        model.summary()
 
-def set_trainable(model, trainable=False):
-    for layer in model.layers:
-        layer.trainable = trainable
+        noise = Input(shape=(self.latent_dim,))
+        img = model(noise)
+        return Model(noise, img)
 
-def wasserstein_loss(true, pred):
-    return -K.mean(true * pred)
+    def create_discriminator(self, color):
+        # Create the discriminator.
+        model = Sequential()
+        model.add(Conv2D(32, kernel_size=3, strides=2, input_shape=(28, 28, 3 if color else 1), padding="same"))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Conv2D(64, kernel_size=3, strides=2, padding="same"))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Conv2D(128, kernel_size=3, strides=2, padding="same"))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Conv2D(256, kernel_size=3, strides=1, padding="same"))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Flatten())
+        model.add(Dense(1, activation='sigmoid'))
+        model.summary()
 
-def fit(gan, generator, discriminator, gen, batch_size=64, epochs=10):
-    x, _ = gen.get_full_data_set(training=True)
-    noise_dim = generator.layers[0].input_shape[-1]
-    gen_loss = []
-    disc_loss = []
+        img = Input(shape=self.img_shape)
+        validity = model(img)
+        return Model(img, validity)
 
-    _, y = gen.get_random_batch(batch_size=9)
-    gen.plot_example(generator.predict(np.random.normal(size=(9, noise_dim))), y)
+    def fit(self, gen, filename, epochs=100, verifier=None, batch_size=128, save_interval=50):
+        times = 3
+        X_train, _ = gen.get_full_data_set(training=True)
+        X_train = (X_train - 0.5) * 2
 
-    generator_target = np.array([[1] for _ in range(batch_size)])
+        # Adversarial ground truths.
+        valid = np.ones((batch_size, 1))
+        fake = np.zeros((batch_size, 1))
 
-    for epoch in range(epochs):
-        print("Epoch {0}/{1}".format(epoch + 1, epochs))
-        temp_gen_loss = 0
-        temp_disc_loss = 0
+        for epoch in range(epochs):
+            idx = np.random.randint(0, X_train.shape[0], batch_size)
+            imgs = X_train[idx]
 
-        for batch_num in range(math.ceil(2 * x.shape[0] / batch_size)):
-            batch_from = batch_num * batch_size // 2
-            batch_to = min(batch_from + batch_size // 2, x.shape[0])
+            # Generate a batch of new images by sampling noise.
+            noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
+            gen_imgs = self.generator.predict(noise)
 
-            gaussian_noise = np.random.normal(size=(batch_size, noise_dim))
-            generated_batch = generator.predict(gaussian_noise)
-            pred = gan.predict(gaussian_noise).mean()
-            for layer in discriminator.layers:
-                  layer.trainable=False
-            #discriminator.trainable=False
-            #print(discriminator.trainable_weights)
-            if pred < 0.8:
-                for _ in range(1+batch_num%2):
-                    temp_gen_loss+=gan.train_on_batch(
-                        gaussian_noise, generator_target
-                    )
-            #discriminator.trainable=True
-            for layer in discriminator.layers:
-                  layer.trainable=True
+            # Train the discriminator.
+            d_loss_real = self.discriminator.train_on_batch(imgs, valid)
+            d_loss_fake = self.discriminator.train_on_batch(gen_imgs, fake)
+            d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
 
-            discriminator_batch = np.concatenate((x[batch_from:batch_to], generated_batch[:batch_size // 2]),
-                                                 axis=0)
-            discriminator_target = np.array([[1] if x < batch_to - batch_from else [0]
-                                             for x in range(discriminator_batch.shape[0])])
-            if pred > 0.35:
-                #print(pred)
-                #discriminator.trainable=True
-                temp_disc_loss +=discriminator.train_on_batch(discriminator_batch, discriminator_target)
-            if batch_num % 200 == 0:
-                print("Gen_loss: {0:.4f} Disc_loss: {1:.4f}".format(temp_gen_loss / ((batch_num+1)*1),
-                                                            temp_disc_loss / ((batch_num+1))
-                                                            )
-                      )
-                print(gan.predict(gaussian_noise).mean())
-                print(discriminator.predict(x[batch_from:batch_to]).mean())
-                #for num, layer in enumerate(discriminator.layers):
-                #     print(layer.name)
-                #     for elem in layer.get_weights():
-                #        print(elem.mean(), elem.max(), elem.min());
+            # Train the generator.
+            g_loss = self.combined.train_on_batch(noise, valid)
 
-        gen_loss.append(temp_gen_loss / x.shape[0])
-        disc_loss.append(temp_disc_loss / x.shape[0])
-        verifier = VerificationNet(file_name='./models/mono_float_missing.h5')
-        verifier.load_weights()
-        main.generate_images(generator, gen, verifier)
-        generator.save('mono_float_missing_generator.h5')
-        discriminator.save('mono_float_missing_discriminator.h5')
+            print("{0} Disc loss: {1:.3f}, acc.: {2:.3f}% Gen loss: {3:.3f}".format(epoch, d_loss[0], 100 * d_loss[1],
+                                                                                    g_loss))
+            if d_loss[1] > 0.8:
+                times = min(10, times + 1)
+            elif d_loss[1] < 0.3:
+                times = max(1, times - 1)
 
-    _, y = gen.get_random_batch(batch_size=9)
-    gen.plot_example(generator.predict(np.random.normal(size=(9, noise_dim))), y)
+            if epoch % save_interval == 0:
+                if verifier is not None:
+                    predictability = verifier.check_predictability(self.generator.predict(noise))[0]
+                    class_coverage = verifier.check_class_coverage(self.generator.predict(noise))
+                    print(predictability, class_coverage)
+                    self.save_weights("{0]_".format(epoch) + filename)
 
-    return gen_loss, disc_loss
+    def save_weights(self, filename):
+        self.discriminator.save('./models_gan/disc_' + filename)
+        self.generator.save('./models_gan/gen_' + filename)
+
+    def load_weights(self, filename):
+        self.discriminator.load_weights('./models_gan/disc_'+filename)
+        self.generator.load_weights('./models_gan/gen_' + filename)
+
+
+if __name__ == '__main__':
+    # Limit gpu usage.
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.7)
+    sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+    set_session(sess)
+
+    dataset = 'mono_float_complete'
+
+    verifier = VerificationNet(file_name='./models/' + dataset + '.h5')
+    verifier.load_weights()
+    gen = StackedMNISTData(mode=DataMode.MONO_FLOAT_COMPLETE, default_batch_size=9)
+
+    dcgan = DCGAN(True if 'color' in dataset else False)
+    dcgan.fit(gen, verifier, epochs=100000, batch_size=32, save_interval=500)
