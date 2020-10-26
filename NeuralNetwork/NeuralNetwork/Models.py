@@ -96,7 +96,6 @@ class Sequential:
 
                 # Forward propagation - prediction
                 fwd_propagation, temp_correct, temp_loss = self.predict(mini_x_train, mini_y_train)
-                # print(fwd_propagation, mini_y_train)
                 correct += temp_correct
                 loss += temp_loss * increment
 
@@ -118,7 +117,6 @@ class Sequential:
                                           correct_val=correct_val, num_val=y_val.shape[0])
                 val_loss.append(curr_loss)
             print()
-            # print(reg_loss)
         return train_loss, val_loss
 
     def predict(self, x: np.ndarray, y: np.ndarray = None) -> tuple:

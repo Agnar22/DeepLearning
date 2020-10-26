@@ -85,7 +85,6 @@ class Dense:
         """
 
         self.prev_layer_out = self.prev_layer.forward(input)
-        print(np.linalg.norm(self.prev_layer_out))
         weighted_sum = np.transpose(self.weights) @ self.prev_layer_out.transpose()
         if self.use_bias:
             bias = np.repeat(self.bias, weighted_sum.shape[-1], axis=-1)

@@ -16,7 +16,7 @@ activations = relu, relu, relu
 
 # loss_type chooses between L2 loss (for regression) and
 # cross_entropy (for classification).
-loss_type = L2
+loss_type = cross_entropy
 
 [HYPER]
 # Learning rate to use

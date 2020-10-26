@@ -127,7 +127,7 @@ def visualize(close, *args):
 if __name__ == '__main__':
     np.random.seed(42)
 
-    config = read_config(path="config/config_ANY_STRUCTURE_REGRESSION.txt")
+    config = read_config(path="config/config_ANY_STRUCTURE_CLASS.txt")
 
     x_train, y_train, num_classes = load_data(config['training'], config['loss_type'] == 'cross_entropy')
     x_val, y_val, _ = load_data(config['validation'], config['loss_type'] == 'cross_entropy', num_classes=num_classes)
@@ -159,10 +159,8 @@ if __name__ == '__main__':
     now = time.time()
     train_loss, val_loss = model.fit(x_train, y_train, validation_data=(x_val, y_val), epochs=config['no_epochs'],
                                      batch_size=64)
-    print(time.time() - now)
     visualize(True, {'x': list(range(len(train_loss))), 'y': train_loss, 'name': 'train_loss'},
               {'x': list(range(len(val_loss))), 'y': val_loss, 'name': 'val_loss'})
-    print(list(model.predict(x_train)))
     z=model.predict(x_train)
     paths = model.save_model("Models", as_txt=True)
     # model.load_model(paths)
